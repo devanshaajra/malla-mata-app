@@ -1,24 +1,35 @@
 {
   "expo": {
-    "name": "malla-mata-app",
-    "slug": "malla-mata-app",
+    "name": "Malla Mata Navratri",
+    "slug": "malla-mata-navratri",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
+    "scheme": "mallamata",
     "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#DC2626"
+    },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.mallamata.navratri",
+      "buildNumber": "1.0.0"
     },
     "android": {
+      "package": "com.mallamata.navratri",
+      "versionCode": 1,
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "backgroundColor": "#DC2626",
+        "foregroundImage": "./assets/icon.png"
       }
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro",
+      "themeColor": "#DC2626",
+      "backgroundColor": "#FFFDF7"
     }
   }
 }
