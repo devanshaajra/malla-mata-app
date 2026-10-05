@@ -26,12 +26,14 @@ import MediaScreen from '../screens/MediaScreen';
 import TasksScreen from '../screens/TasksScreen';
 import VotingPollsScreen from '../screens/VotingPollsScreen';
 
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, Platform } from 'react-native';
 
 const Stack = createStackNavigator();
 
 const screenOptions = {
   headerShown: false,
+  gestureEnabled: Platform.OS !== 'web',
+  animationEnabled: Platform.OS !== 'web',
 };
 
 function AuthStack() {

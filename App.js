@@ -82,29 +82,149 @@ export default function App() {
             overscroll-behavior-y: contain !important;
             touch-action: pan-y !important;
           }
-          /* Smooth custom scrollbars */
+          /* High-visibility Navratri custom scrollbar */
           ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
+            width: 8px !important;
+            height: 8px !important;
           }
           ::-webkit-scrollbar-track {
-            background: rgba(0, 0, 0, 0.05);
+            background: rgba(254, 243, 199, 0.4) !important;
+            border-radius: 4px !important;
           }
           ::-webkit-scrollbar-thumb {
-            background: rgba(220, 38, 38, 0.4);
-            border-radius: 3px;
+            background: linear-gradient(180deg, #DC2626, #EA580C) !important;
+            border-radius: 4px !important;
+            border: 1px solid rgba(255, 255, 255, 0.4) !important;
           }
           ::-webkit-scrollbar-thumb:hover {
-            background: rgba(220, 38, 38, 0.7);
+            background: #B91C1C !important;
           }
         `;
         document.head.appendChild(style);
       }
+
+      // Universal scroller resolution for React Native Web
+      const getActiveScroller = (target) => {
+        let curr = target;
+        while (curr && curr !== document.body && curr !== document.documentElement) {
+          if (curr.scrollHeight > curr.clientHeight && curr.clientHeight > 0) {
+            const style = window.getComputedStyle(curr);
+            if (style.overflowY === 'auto' || style.overflowY === 'scroll') {
+              return curr;
+            }
+          }
+          curr = curr.parentElement;
+        }
+
+        // RNW scroll container candidates
+        const candidates = document.querySelectorAll('[scrollable="true"], .r-150rngu, div[class*="r-150rngu"]');
+        for (let i = candidates.length - 1; i >= 0; i--) {
+          const el = candidates[i];
+          if (el.scrollHeight > el.clientHeight && el.clientHeight > 0) {
+            return el;
+          }
+        }
+
+        // Fallback: search all divs
+        const allDivs = document.querySelectorAll('div');
+        for (let i = allDivs.length - 1; i >= 0; i--) {
+          const el = allDivs[i];
+          if (el.scrollHeight > el.clientHeight && el.clientHeight > 0) {
+            const style = window.getComputedStyle(el);
+            if (style.overflowY === 'auto' || style.overflowY === 'scroll') {
+              return el;
+            }
+          }
+        }
+        return null;
+      };
+
+      // 1. Forward mouse wheel anywhere on desktop screen to the active scroller
+      const handleGlobalWheel = (e) => {
+        const scroller = getActiveScroller(e.target);
+        if (scroller) {
+          if (!scroller.contains(e.target)) {
+            scroller.scrollTop += e.deltaY;
+          }
+        }
+      };
+
+      // 2. Keyboard scrolling (ArrowDown, ArrowUp, PageDown, PageUp, Spacebar)
+      const handleGlobalKeyDown = (e) => {
+        const tag = e.target?.tagName?.toLowerCase();
+        if (tag === 'input' || tag === 'textarea' || e.target?.isContentEditable) return;
+
+        const scroller = getActiveScroller(e.target);
+        if (!scroller) return;
+
+        if (e.key === 'ArrowDown') {
+          scroller.scrollTop += 60;
+          e.preventDefault();
+        } else if (e.key === 'ArrowUp') {
+          scroller.scrollTop -= 60;
+          e.preventDefault();
+        } else if (e.key === 'PageDown' || (e.key === ' ' && !e.shiftKey)) {
+          scroller.scrollTop += scroller.clientHeight * 0.75;
+          e.preventDefault();
+        } else if (e.key === 'PageUp' || (e.key === ' ' && e.shiftKey)) {
+          scroller.scrollTop -= scroller.clientHeight * 0.75;
+          e.preventDefault();
+        }
+      };
+
+      // 3. Desktop Click-and-Drag to scroll (Touch emulation)
+      let isDragging = false;
+      let startY = 0;
+      let startScrollTop = 0;
+      let activeDragScroller = null;
+
+      const handleMouseDown = (e) => {
+        if (e.button !== 0) return;
+        const tag = e.target?.tagName?.toLowerCase();
+        if (tag === 'input' || tag === 'textarea' || tag === 'button') return;
+
+        const scroller = getActiveScroller(e.target);
+        if (!scroller) return;
+
+        isDragging = true;
+        startY = e.clientY;
+        startScrollTop = scroller.scrollTop;
+        activeDragScroller = scroller;
+      };
+
+      const handleMouseMove = (e) => {
+        if (!isDragging || !activeDragScroller) return;
+        const deltaY = e.clientY - startY;
+        if (Math.abs(deltaY) > 4) {
+          activeDragScroller.scrollTop = startScrollTop - deltaY;
+        }
+      };
+
+      const handleMouseUp = () => {
+        isDragging = false;
+        activeDragScroller = null;
+      };
+
+      window.addEventListener('wheel', handleGlobalWheel, { passive: true });
+      window.addEventListener('keydown', handleGlobalKeyDown);
+      window.addEventListener('mousedown', handleMouseDown);
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+
+      return () => {
+        window.removeEventListener('wheel', handleGlobalWheel);
+        window.removeEventListener('keydown', handleGlobalKeyDown);
+        window.removeEventListener('mousedown', handleMouseDown);
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+      };
     }
   }, []);
 
+  const RootView = Platform.OS === 'web' ? View : GestureHandlerRootView;
+
   return (
-    <GestureHandlerRootView style={[styles.rootContainer, isMobileViewport && styles.mobileRootContainer]}>
+    <RootView style={[styles.rootContainer, isMobileViewport && styles.mobileRootContainer]}>
       <SafeAreaProvider style={[styles.rootContainer, isMobileViewport && styles.mobileRootContainer]}>
         <ToastProvider>
           <AuthProvider>
@@ -121,7 +241,7 @@ export default function App() {
           </AuthProvider>
         </ToastProvider>
       </SafeAreaProvider>
-    </GestureHandlerRootView>
+    </RootView>
   );
 }
 

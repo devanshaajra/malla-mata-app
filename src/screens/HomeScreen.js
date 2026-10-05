@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView,
   StatusBar, Platform, Image, ImageBackground, Dimensions,
@@ -20,6 +20,8 @@ export default function HomeScreen({ navigation }) {
   } = useData();
   const [activeBannerIdx, setActiveBannerIdx] = useState(0);
   const [activeShlokaIdx, setActiveShlokaIdx] = useState(0);
+  const scrollRef = useRef(null);
+  const [scrollY, setScrollY] = useState(0);
 
   // Auto-rotate Blinkit banners in a loop every 10 seconds
   useEffect(() => {
@@ -56,44 +58,6 @@ export default function HomeScreen({ navigation }) {
   const [newMessage, setNewMessage] = useState('');
   const [newCategory, setNewCategory] = useState('announcement');
   const [newLinkScreen, setNewLinkScreen] = useState('VotingPolls');
-
-  // Popup Frequency Gating: Show once when user opens the app, and then only after 1 hour when reopened
-  useEffect(() => {
-    let isMounted = true;
-    const checkAndShowPopup = async () => {
-      if (!allowedAnnouncements || allowedAnnouncements.length === 0) return;
-      try {
-        const LAST_POPUP_KEY = '@mm_last_popup_timestamp';
-        const lastShownTime = await AsyncStorage.getItem(LAST_POPUP_KEY);
-        const now = Date.now();
-        const ONE_HOUR_MS = 60 * 60 * 1000;
-
-        if (lastShownTime) {
-          const diff = now - parseInt(lastShownTime, 10);
-          if (diff < ONE_HOUR_MS) {
-            // Less than an hour has elapsed since last popup - do not popup
-            return;
-          }
-        }
-
-        if (isMounted) {
-          // Show the latest announcement
-          const latest = allowedAnnouncements[0];
-          setPopupAnnouncement(latest);
-          setShowPopupModal(true);
-          // Record timestamp
-          await AsyncStorage.setItem(LAST_POPUP_KEY, now.toString());
-        }
-      } catch (e) {
-        console.error('Error checking popup schedule:', e);
-      }
-    };
-
-    checkAndShowPopup();
-    return () => {
-      isMounted = false;
-    };
-  }, []);
 
   const handleDismissPopup = async () => {
     setShowPopupModal(false);
@@ -242,13 +206,31 @@ export default function HomeScreen({ navigation }) {
         />
       </View>
 
-      {/* Header (Festive Gradient & Attractive Navratri Logo) */}
-      <LinearGradient
-        colors={['#DC2626', '#EA580C', '#F59E0B']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.header}
+      {/* Main Scrollable Content (Header + Content: 100% of the screen scrolls seamlessly) */}
+      <ScrollView
+        ref={scrollRef}
+        onScroll={(e) => {
+          const y = e.nativeEvent?.contentOffset?.y || 0;
+          setScrollY(y);
+        }}
+        scrollEventThrottle={16}
+        style={[
+          styles.scrollContainer,
+          Platform.OS === 'web' && { overflowY: 'auto', WebkitOverflowScrolling: 'touch' },
+        ]}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={true}
+        nestedScrollEnabled={true}
+        keyboardShouldPersistTaps="handled"
+        bounces={true}
       >
+        {/* Header (Festive Gradient & Attractive Navratri Logo) */}
+        <LinearGradient
+          colors={['#DC2626', '#EA580C', '#F59E0B']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.header}
+        >
         <View style={styles.headerTop}>
           {/* Navratri Themed Logo */}
           <View style={styles.headerLogoBadge}>
@@ -323,21 +305,10 @@ export default function HomeScreen({ navigation }) {
             </Text>
           </TouchableOpacity>
         </View>
-      </LinearGradient>
+        </LinearGradient>
 
-      {/* Main Scrollable Content */}
-      <ScrollView
-        style={[
-          styles.scrollContainer,
-          Platform.OS === 'web' && { overflowY: 'auto', WebkitOverflowScrolling: 'touch' },
-        ]}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={true}
-        nestedScrollEnabled={true}
-        keyboardShouldPersistTaps="handled"
-        bounces={true}
-        scrollEventThrottle={16}
-      >
+        {/* Inner Cards and Widgets Content */}
+        <View style={styles.mainInnerContent}>
         {/* Modern Blinkit-Style Interactive Banner Carousel */}
         <View style={styles.bannerSection}>
           <LinearGradient
@@ -685,7 +656,29 @@ export default function HomeScreen({ navigation }) {
           </TouchableOpacity>
           <Text style={styles.bottomFooterText}>Malla Mata Navratri Mahotsav 2026 • Jay Ambe 🪔</Text>
         </View>
+        </View>
       </ScrollView>
+
+      {/* Floating Quick Scroll Controls (Instant 1-tap navigation up/down) */}
+      {scrollY > 220 ? (
+        <TouchableOpacity
+          style={styles.floatingScrollTopBtn}
+          onPress={() => scrollRef.current?.scrollTo({ y: 0, animated: true })}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="arrow-up" size={16} color="#FFFFFF" />
+          <Text style={styles.floatingScrollText}>Top</Text>
+        </TouchableOpacity>
+      ) : (
+        <TouchableOpacity
+          style={styles.floatingScrollDownBtn}
+          onPress={() => scrollRef.current?.scrollTo({ y: 460, animated: true })}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="arrow-down" size={14} color="#991B1B" />
+          <Text style={styles.floatingScrollDownText}>Menu ⬇</Text>
+        </TouchableOpacity>
+      )}
 
       {/* ── Pop-Up Alert Modal for Announcements / Polls / Notices ── */}
       <Modal
@@ -885,8 +878,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFDF7',
     position: 'relative',
     height: '100%',
-    maxHeight: '100%',
-    overflow: 'hidden',
+    width: '100%',
   },
   divineEyesBgWrap: {
     position: 'absolute',
@@ -1085,6 +1077,7 @@ const styles = StyleSheet.create({
   scrollContainer: {
     flex: 1,
     width: '100%',
+    height: '100%',
     minHeight: 0,
     ...(Platform.OS === 'web' ? {
       overflowY: 'auto',
@@ -1093,11 +1086,62 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
+    paddingBottom: 70,
+  },
+  mainInnerContent: {
     padding: 16,
-    paddingBottom: 90,
-    maxWidth: 440,
+    paddingBottom: 40,
+    maxWidth: 480,
     width: '100%',
     alignSelf: 'center',
+  },
+  floatingScrollTopBtn: {
+    position: 'absolute',
+    bottom: 22,
+    right: 18,
+    backgroundColor: '#DC2626',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 8,
+    zIndex: 99,
+    gap: 4,
+  },
+  floatingScrollText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  floatingScrollDownBtn: {
+    position: 'absolute',
+    bottom: 22,
+    right: 18,
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1.5,
+    borderColor: '#F59E0B',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 8,
+    zIndex: 99,
+    gap: 4,
+  },
+  floatingScrollDownText: {
+    color: '#991B1B',
+    fontSize: 11,
+    fontWeight: '800',
   },
   bannerSection: {
     marginBottom: 12,
