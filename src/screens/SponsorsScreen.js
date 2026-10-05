@@ -53,13 +53,7 @@ export default function SponsorsScreen({ navigation }) {
   };
 
   const confirmDelete = (item) => {
-    if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      if (window.confirm(`Are you sure you want to remove ${item.name}?`)) {
-        executeDelete(item.id);
-      }
-    } else {
-      setDeleteTarget(item);
-    }
+    setDeleteTarget(item);
   };
 
   const totalSponsorSum = sponsors.reduce((sum, s) => sum + (parseFloat(s.amount) || 0), 0);

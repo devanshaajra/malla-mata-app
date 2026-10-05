@@ -9,6 +9,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
 import { useToast } from '../contexts/ToastContext';
+import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 
 const REACTION_EMOJIS = ['❤️', '🙏', '🪔', '🌸', '🔥', '👏', '🔱'];
 
@@ -21,6 +22,8 @@ export default function MediaScreen({ navigation }) {
   const [caption, setCaption] = useState('');
   const [selectedMediaIndex, setSelectedMediaIndex] = useState(null);
   const [viewMode, setViewMode] = useState('grid'); // 'grid' (mobile aspect ratio grid) or 'feed'
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [mediaIdToDelete, setMediaIdToDelete] = useState(null);
 
   // Mobile aspect ratio responsive grid calculation
   const numColumns = width < 520 ? 3 : 4;
@@ -75,21 +78,17 @@ export default function MediaScreen({ navigation }) {
   };
 
   const handleDelete = (id) => {
-    const doDelete = () => {
-      deleteMedia(id);
-      setSelectedMediaIndex(null);
-      showToast('Media Deleted', 'info');
-    };
+    setMediaIdToDelete(id);
+    setDeleteModalVisible(true);
+  };
 
-    if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      if (window.confirm('Are you sure you want to remove this media?')) {
-        doDelete();
-      }
-    } else {
-      Alert.alert('Delete Media', 'Are you sure you want to remove this media?', [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: doDelete },
-      ]);
+  const confirmDeleteMedia = async () => {
+    if (mediaIdToDelete) {
+      await deleteMedia(mediaIdToDelete);
+      setDeleteModalVisible(false);
+      setMediaIdToDelete(null);
+      setSelectedMediaIndex(null);
+      showToast('Media Deleted 🗑️', 'info');
     }
   };
 
@@ -432,6 +431,19 @@ export default function MediaScreen({ navigation }) {
           </View>
         </Modal>
       )}
+
+      {/* Modern In-App Confirm Delete Modal */}
+      <ConfirmDeleteModal
+        visible={deleteModalVisible}
+        title="Remove Media?"
+        message="Are you sure you want to remove this festival photo/video from the gallery? This action cannot be undone."
+        confirmText="Yes, Delete"
+        onConfirm={confirmDeleteMedia}
+        onCancel={() => {
+          setDeleteModalVisible(false);
+          setMediaIdToDelete(null);
+        }}
+      />
     </View>
   );
 }

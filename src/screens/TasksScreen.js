@@ -9,6 +9,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
 import { useToast } from '../contexts/ToastContext';
 import { AARTI_DATES } from '../utils/constants';
+import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 
 const PRIORITIES = ['High', 'Medium', 'Normal'];
 const STATUSES = ['Pending', 'In Progress', 'Completed'];
@@ -21,6 +22,7 @@ export default function TasksScreen({ navigation }) {
 
   const [activeTab, setActiveTab] = useState('my'); // 'my' | 'all' | 'pending' | 'completed'
   const [searchQuery, setSearchQuery] = useState('');
+  const [taskToDelete, setTaskToDelete] = useState(null);
 
   // Modals
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -161,26 +163,18 @@ export default function TasksScreen({ navigation }) {
       );
       return;
     }
+    setTaskToDelete(task);
+  };
 
-    const doDelete = async () => {
-      const res = await deleteTask(task.id, currentUser);
-      if (res?.success) {
-        showToast('Task Deleted', 'delete', `Removed "${task.name}"`);
-      } else {
-        showToast(res?.error || 'Failed to delete task', 'error');
-      }
-    };
-
-    if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      if (window.confirm(`Are you sure you want to delete task "${task.name}"?`)) {
-        doDelete();
-      }
+  const executeDeleteTask = async () => {
+    if (!taskToDelete) return;
+    const res = await deleteTask(taskToDelete.id, currentUser);
+    if (res?.success) {
+      showToast('Task Deleted 🗑️', 'delete', `Removed "${taskToDelete.name}"`);
     } else {
-      Alert.alert('Delete Task', `Are you sure you want to delete task "${task.name}"?`, [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: doDelete },
-      ]);
+      showToast(res?.error || 'Failed to delete task', 'error');
     }
+    setTaskToDelete(null);
   };
 
   // Toggle Task Status (Pending -> In Progress -> Completed)
@@ -730,6 +724,16 @@ export default function TasksScreen({ navigation }) {
           </View>
         </View>
       </Modal>
+
+      {/* Modern Confirm Delete Modal */}
+      <ConfirmDeleteModal
+        visible={taskToDelete !== null}
+        title="Delete Community Task?"
+        message={`Are you sure you want to delete "${taskToDelete?.name}"? This action cannot be undone.`}
+        confirmText="Yes, Delete"
+        onConfirm={executeDeleteTask}
+        onCancel={() => setTaskToDelete(null)}
+      />
     </View>
   );
 }

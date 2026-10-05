@@ -56,20 +56,11 @@ export default function AttendanceScreen({ navigation }) {
   const handleToggleMyAttendance = async () => {
     // If not superuser:
     if (!isSuperuser) {
-      if (!isSameDay) {
-        showToast(
-          'Same-Day Attendance Only ⚠️',
-          'warning',
-          `Cannot mark for ${selectedDate}. You can only mark today (${todayStr}).`
-        );
-        return;
-      }
-
       if (isCurrentUserMarked) {
         showToast(
-          'Attendance Locked 🔒',
+          'Attendance Already Recorded 🪔',
           'info',
-          'Once marked, attendance cannot be unmarked! Only Superuser can modify.'
+          `Your 8 PM Aarti attendance is already marked for ${selectedDate}.`
         );
         return;
       }

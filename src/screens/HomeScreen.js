@@ -904,7 +904,7 @@ const styles = StyleSheet.create({
     height: 320,
   },
   header: {
-    paddingTop: 48,
+    paddingTop: Platform.OS === 'web' ? 24 : 48,
     paddingBottom: 18,
     paddingHorizontal: 20,
     borderBottomLeftRadius: 28,
@@ -1024,6 +1024,7 @@ const styles = StyleSheet.create({
   badgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
     gap: 8,
     marginTop: 12,
   },

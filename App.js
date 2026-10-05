@@ -113,14 +113,6 @@ export default function App() {
 
               {/* Main App Container */}
               <View style={[styles.frameContainer, !isMobileViewport && styles.webDeviceFrame]}>
-                {!isMobileViewport && (
-                  <View style={styles.phoneNotchBar}>
-                    <View style={styles.phoneIsland}>
-                      <View style={styles.phoneCameraDot} />
-                      <View style={styles.phoneSpeakerPill} />
-                    </View>
-                  </View>
-                )}
                 <View style={styles.navigatorWrapper}>
                   <AppNavigator />
                 </View>
@@ -158,55 +150,20 @@ const styles = StyleSheet.create({
   },
   webDeviceFrame: {
     width: '100%',
-    maxWidth: 430,
-    height: '94vh',
-    maxHeight: 900,
-    borderRadius: 44,
+    maxWidth: 480,
+    height: '96vh',
+    maxHeight: 920,
+    borderRadius: 32,
     marginVertical: 'auto',
-    borderWidth: 8,
-    borderColor: '#240808',
+    borderWidth: 1.5,
+    borderColor: 'rgba(220, 38, 38, 0.25)',
     shadowColor: '#DC2626',
-    shadowOffset: { width: 0, height: 20 },
-    shadowOpacity: 0.45,
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.35,
     shadowRadius: 36,
     elevation: 24,
     position: 'relative',
     overflow: 'hidden',
-  },
-  phoneNotchBar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 999,
-    pointerEvents: 'none',
-  },
-  phoneIsland: {
-    width: 100,
-    height: 18,
-    backgroundColor: '#0F0202',
-    borderRadius: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  phoneCameraDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: '#1E293B',
-    borderWidth: 1,
-    borderColor: '#0F172A',
-  },
-  phoneSpeakerPill: {
-    width: 32,
-    height: 3.5,
-    borderRadius: 2,
-    backgroundColor: '#1E293B',
   },
   navigatorWrapper: {
     flex: 1,
