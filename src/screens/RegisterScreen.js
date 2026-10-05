@@ -238,7 +238,9 @@ export default function RegisterScreen({ navigation }) {
 const styles = StyleSheet.create({
   gradient: {
     flex: 1,
-    ...(Platform.OS === 'web' ? { minHeight: '100%', height: '100%' } : {}),
+    height: '100%',
+    maxHeight: '100%',
+    overflow: 'hidden',
   },
   container: { flex: 1 },
   scroll: {

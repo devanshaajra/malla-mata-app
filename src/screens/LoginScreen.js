@@ -59,11 +59,6 @@ export default function LoginScreen({ navigation }) {
       setPassword('112754');
       setLoginAs('admin');
       showToast('Superuser Devansh loaded', 'info');
-    } else if (type === 'admin') {
-      setIdentifier('admin');
-      setPassword('Admin@2026');
-      setLoginAs('admin');
-      showToast('Admin credentials loaded', 'info');
     } else {
       setIdentifier('priya');
       setPassword('User@2026');
@@ -132,7 +127,7 @@ export default function LoginScreen({ navigation }) {
               <View style={styles.adminNotice}>
                 <Ionicons name="shield-outline" size={16} color="#B45309" />
                 <Text style={styles.adminNoticeText}>
-                  Direct Committee Credentials (Devansh / Admin)
+                  Superuser Devansh & Appointed Admins Only
                 </Text>
               </View>
             ) : (
@@ -237,7 +232,7 @@ export default function LoginScreen({ navigation }) {
 
             {/* Quick Demo Credentials */}
             <View style={styles.demoSection}>
-              <Text style={styles.demoTitle}>⚡ 1-TAP DEMO CREDENTIALS</Text>
+              <Text style={styles.demoTitle}>⚡ QUICK LOGIN</Text>
               <View style={styles.pillsRow}>
                 <TouchableOpacity
                   style={[styles.pill, styles.pillSuperuser]}
@@ -245,13 +240,6 @@ export default function LoginScreen({ navigation }) {
                 >
                   <Ionicons name="shield-checkmark" size={13} color="#B45309" />
                   <Text style={styles.pillTextSuperuser}>Devansh (Superuser)</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.pill, styles.pillAdmin]}
-                  onPress={() => fillCredentials('admin')}
-                >
-                  <Ionicons name="shield-checkmark" size={13} color="#15803D" />
-                  <Text style={styles.pillTextAdmin}>Admin (admin / Admin@2026)</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.pill, styles.pillResident]}
@@ -280,7 +268,9 @@ export default function LoginScreen({ navigation }) {
 const styles = StyleSheet.create({
   gradient: {
     flex: 1,
-    ...(Platform.OS === 'web' ? { minHeight: '100%', height: '100%' } : {}),
+    height: '100%',
+    maxHeight: '100%',
+    overflow: 'hidden',
   },
   container: { flex: 1 },
   scroll: {

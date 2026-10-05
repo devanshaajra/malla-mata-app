@@ -11,7 +11,7 @@ const STORAGE_KEYS = {
   CURRENT_USER: '@malla_mata_current_user_v2',
 };
 
-// Default seed users with Superuser Devansh & Admin
+// Default seed users with Superuser Devansh & Member Priya (No other hardcoded admin)
 const DEFAULT_USERS = [
   {
     id: 'superuser-devansh',
@@ -25,20 +25,6 @@ const DEFAULT_USERS = [
     adminControls: { ...DEFAULT_ADMIN_CONTROLS },
     verified: true,
     photoURL: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop&q=80',
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'admin-committee',
-    name: 'Committee Admin',
-    username: 'admin',
-    email: 'admin@mallamata.app',
-    phone: '+91 98222 33444',
-    password: 'Admin@2026',
-    displayName: 'Committee Organizer',
-    role: ROLES.ADMIN,
-    adminControls: { ...DEFAULT_ADMIN_CONTROLS },
-    verified: true,
-    photoURL: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=200&auto=format&fit=crop&q=80',
     createdAt: new Date().toISOString(),
   },
   {
@@ -87,6 +73,9 @@ export function AuthProvider({ children }) {
       ]);
 
       let usersList = storedUsers ? JSON.parse(storedUsers) : DEFAULT_USERS;
+
+      // Remove any leftover demo admin user
+      usersList = usersList.filter(u => u.username?.toLowerCase() !== 'admin' && u.id !== 'admin-committee');
 
       // Ensure superuser Devansh with 112754 always exists and is up to date
       const superIndex = usersList.findIndex(u => u.username?.toLowerCase() === 'devansh' || u.role === ROLES.SUPERUSER);

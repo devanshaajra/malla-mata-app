@@ -52,15 +52,16 @@ export default function App() {
             margin: 0 !important;
             padding: 0 !important;
             background: radial-gradient(circle at 50% 10%, #450A0A 0%, #1A0505 50%, #0F0202 100%) !important;
-            overflow-x: hidden !important;
+            overflow: hidden !important;
           }
           #root {
-            min-height: 100% !important;
+            height: 100% !important;
             width: 100% !important;
             display: flex !important;
             flex-direction: column !important;
             align-items: center !important;
             justify-content: center !important;
+            overflow: hidden !important;
           }
           @media (max-width: 520px) {
             html, body, #root {
@@ -68,11 +69,18 @@ export default function App() {
               align-items: stretch !important;
               justify-content: flex-start !important;
               height: 100% !important;
-              min-height: 100% !important;
+              width: 100% !important;
+              overflow: hidden !important;
             }
           }
           input, textarea, select {
             font-family: 'Plus Jakarta Sans', sans-serif !important;
+          }
+          /* Ensure all scroll containers scroll smoothly on touch & wheel */
+          div[style*="overflow-y: auto"], div[style*="overflow-y: scroll"], .r-overflowY-1rnoaur {
+            -webkit-overflow-scrolling: touch !important;
+            overscroll-behavior-y: contain !important;
+            touch-action: pan-y !important;
           }
           /* Smooth custom scrollbars */
           ::-webkit-scrollbar {
@@ -130,6 +138,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#140303',
     width: '100%',
+    height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -137,20 +146,23 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFDF7',
     alignItems: 'stretch',
     justifyContent: 'flex-start',
+    height: '100%',
+    width: '100%',
   },
   frameContainer: {
     flex: 1,
     width: '100%',
+    height: '100%',
     backgroundColor: '#FFFDF7',
     overflow: 'hidden',
   },
   webDeviceFrame: {
     width: '100%',
-    maxWidth: 425,
-    aspectRatio: 9 / 19.5,
-    maxHeight: '96%',
+    maxWidth: 430,
+    height: '94vh',
+    maxHeight: 900,
     borderRadius: 44,
-    marginVertical: 12,
+    marginVertical: 'auto',
     borderWidth: 8,
     borderColor: '#240808',
     shadowColor: '#DC2626',
@@ -159,6 +171,7 @@ const styles = StyleSheet.create({
     shadowRadius: 36,
     elevation: 24,
     position: 'relative',
+    overflow: 'hidden',
   },
   phoneNotchBar: {
     position: 'absolute',
@@ -198,5 +211,8 @@ const styles = StyleSheet.create({
   navigatorWrapper: {
     flex: 1,
     width: '100%',
+    height: '100%',
+    minHeight: 0,
+    overflow: 'hidden',
   },
 });

@@ -396,7 +396,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFDF7',
-    ...(Platform.OS === 'web' ? { minHeight: '100%', height: '100%' } : {}),
+    height: '100%',
+    maxHeight: '100%',
+    overflow: 'hidden',
   },
   header: {
     flexDirection: 'row',

@@ -327,10 +327,16 @@ export default function HomeScreen({ navigation }) {
 
       {/* Main Scrollable Content */}
       <ScrollView
-        style={styles.scrollContainer}
+        style={[
+          styles.scrollContainer,
+          Platform.OS === 'web' && { overflowY: 'auto', WebkitOverflowScrolling: 'touch' },
+        ]}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={true}
         nestedScrollEnabled={true}
+        keyboardShouldPersistTaps="handled"
+        bounces={true}
+        scrollEventThrottle={16}
       >
         {/* Modern Blinkit-Style Interactive Banner Carousel */}
         <View style={styles.bannerSection}>
@@ -878,7 +884,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFFDF7',
     position: 'relative',
-    ...(Platform.OS === 'web' ? { height: '100%', minHeight: '100%' } : {}),
+    height: '100%',
+    maxHeight: '100%',
+    overflow: 'hidden',
   },
   divineEyesBgWrap: {
     position: 'absolute',
@@ -889,6 +897,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 0,
     opacity: 0.12,
+    pointerEvents: 'none',
   },
   divineEyesBg: {
     width: 320,
@@ -1074,10 +1083,17 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     flex: 1,
+    width: '100%',
+    minHeight: 0,
+    ...(Platform.OS === 'web' ? {
+      overflowY: 'auto',
+      WebkitOverflowScrolling: 'touch',
+    } : {}),
   },
   scrollContent: {
+    flexGrow: 1,
     padding: 16,
-    paddingBottom: 48,
+    paddingBottom: 90,
     maxWidth: 440,
     width: '100%',
     alignSelf: 'center',
