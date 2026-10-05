@@ -1563,6 +1563,8 @@ export function DataProvider({ children }) {
       },
       createdAt: new Date().toISOString(),
       priority: announcementData.priority || 'high',
+      deadline: announcementData.deadline || null,
+      deadlineTimeline: announcementData.deadlineTimeline || 'No Deadline',
       expiresAt: announcementData.expiresAt || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
       linkScreen: announcementData.linkScreen || 'HomeScreen',
     };

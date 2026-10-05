@@ -15,7 +15,7 @@ export default function HomeScreen({ navigation }) {
   const { currentUser, logout, isAdmin, isSuperuser } = useAuth();
   const {
     totalFundsCollected, totalSponsorFunds, totalExpenses, funds,
-    carryForwardBalance, netBalance, tasks, announcements, addAnnouncement, polls,
+    carryForwardBalance, netBalance, tasks, announcements, addAnnouncement, deleteAnnouncement, polls,
     syncStatus, triggerSync
   } = useData();
   const [activeBannerIdx, setActiveBannerIdx] = useState(0);
@@ -58,6 +58,9 @@ export default function HomeScreen({ navigation }) {
   const [newMessage, setNewMessage] = useState('');
   const [newCategory, setNewCategory] = useState('announcement');
   const [newLinkScreen, setNewLinkScreen] = useState('VotingPolls');
+  const [newDeadlineType, setNewDeadlineType] = useState('none'); // 'today' | '24h' | '3d' | 'navratri' | 'custom' | 'none'
+  const [customDeadline, setCustomDeadline] = useState('');
+  const [showAnnouncementsListModal, setShowAnnouncementsListModal] = useState(false);
 
   const handleDismissPopup = async () => {
     setShowPopupModal(false);
@@ -82,19 +85,66 @@ export default function HomeScreen({ navigation }) {
       alert('Please enter both title and message.');
       return;
     }
+
+    let deadlineTimeline = 'No Deadline';
+    let expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
+    if (newDeadlineType === 'today') {
+      const eod = new Date();
+      eod.setHours(23, 59, 59, 999);
+      deadlineTimeline = 'Today by 11:59 PM';
+      expiresAt = eod.toISOString();
+    } else if (newDeadlineType === '24h') {
+      const t = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      deadlineTimeline = 'Within 24 Hours';
+      expiresAt = t.toISOString();
+    } else if (newDeadlineType === '3d') {
+      const t = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
+      deadlineTimeline = 'Within 3 Days';
+      expiresAt = t.toISOString();
+    } else if (newDeadlineType === 'navratri') {
+      deadlineTimeline = '19 Oct 2026 (Navratri Mahotsav End)';
+      expiresAt = new Date('2026-10-19T23:59:59.000Z').toISOString();
+    } else if (newDeadlineType === 'custom') {
+      if (!customDeadline.trim()) {
+        alert('Please specify the custom deadline timeline.');
+        return;
+      }
+      deadlineTimeline = customDeadline.trim();
+    }
+
     const res = await addAnnouncement(
       {
         title: newTitle.trim(),
         message: newMessage.trim(),
         category: newCategory,
         linkScreen: newLinkScreen,
+        deadlineTimeline,
+        expiresAt,
       },
       currentUser
     );
     if (res?.success) {
       setNewTitle('');
       setNewMessage('');
+      setNewDeadlineType('none');
+      setCustomDeadline('');
       setShowPostModal(false);
+    } else if (res?.error) {
+      alert(res.error);
+    }
+  };
+
+  const handleRemoveAnnouncement = async (id) => {
+    if (!id) return;
+    const res = await deleteAnnouncement(id, currentUser);
+    if (res?.success) {
+      if (popupAnnouncement?.id === id) {
+        setShowPopupModal(false);
+        setPopupAnnouncement(null);
+      }
+    } else if (res?.error) {
+      alert(res.error);
     }
   };
 
@@ -423,6 +473,14 @@ export default function HomeScreen({ navigation }) {
                         ? '📋 TASK REMINDER'
                         : '📢 COMMUNITY NOTICE'}
                     </Text>
+                    {allowedAnnouncements[0].deadlineTimeline && allowedAnnouncements[0].deadlineTimeline !== 'No Deadline' && (
+                      <View style={styles.announcementTimelinePill}>
+                        <Ionicons name="hourglass-outline" size={10} color="#DC2626" />
+                        <Text style={styles.announcementTimelinePillText}>
+                          {allowedAnnouncements[0].deadlineTimeline}
+                        </Text>
+                      </View>
+                    )}
                     <Text style={styles.announcementTimeTag}>Tap to read</Text>
                   </View>
                   <Text style={styles.announcementTitle} numberOfLines={1}>
@@ -436,16 +494,50 @@ export default function HomeScreen({ navigation }) {
               <Ionicons name="chevron-forward" size={18} color="#7C3AED" />
             </TouchableOpacity>
 
-            {(isAdmin || isSuperuser) && (
+            <View style={styles.announcementBottomRow}>
               <TouchableOpacity
-                style={styles.postNoticeBtn}
-                onPress={() => setShowPostModal(true)}
+                style={styles.viewAllAnnBtn}
+                onPress={() => setShowAnnouncementsListModal(true)}
                 activeOpacity={0.8}
               >
-                <Ionicons name="megaphone" size={13} color="#7C3AED" />
-                <Text style={styles.postNoticeBtnText}>+ Post Alert</Text>
+                <Ionicons name="layers-outline" size={13} color="#6366F1" />
+                <Text style={styles.viewAllAnnBtnText}>
+                  All Alerts ({allowedAnnouncements.length})
+                </Text>
               </TouchableOpacity>
-            )}
+
+              {(isAdmin || isSuperuser) && (
+                <TouchableOpacity
+                  style={styles.postNoticeBtn}
+                  onPress={() => setShowPostModal(true)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="add-circle-outline" size={13} color="#7C3AED" />
+                  <Text style={styles.postNoticeBtnText}>+ Add Alert</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        )}
+
+        {allowedAnnouncements.length === 0 && (isAdmin || isSuperuser) && (
+          <View style={styles.announcementBannerWrap}>
+            <TouchableOpacity
+              style={[styles.announcementBanner, { borderStyle: 'dashed', borderColor: '#C084FC' }]}
+              onPress={() => setShowPostModal(true)}
+              activeOpacity={0.8}
+            >
+              <View style={styles.announcementLeft}>
+                <View style={[styles.announcementIconBg, { backgroundColor: '#7C3AED' }]}>
+                  <Ionicons name="megaphone" size={17} color="#FFFFFF" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.announcementTitle}>+ Post Community Alert / Notice</Text>
+                  <Text style={styles.announcementSnippet}>Set deadline timelines & broadcast to members</Text>
+                </View>
+              </View>
+              <Ionicons name="add-circle" size={20} color="#7C3AED" />
+            </TouchableOpacity>
           </View>
         )}
 
@@ -717,6 +809,15 @@ export default function HomeScreen({ navigation }) {
             <View style={styles.popupBody}>
               <Text style={styles.popupMessage}>{popupAnnouncement?.message}</Text>
 
+              {popupAnnouncement?.deadlineTimeline && popupAnnouncement.deadlineTimeline !== 'No Deadline' && (
+                <View style={styles.popupTimelineBox}>
+                  <Ionicons name="hourglass" size={15} color="#DC2626" />
+                  <Text style={styles.popupTimelineText}>
+                    Deadline Timeline: {popupAnnouncement.deadlineTimeline}
+                  </Text>
+                </View>
+              )}
+
               <View style={styles.popupMetaRow}>
                 <Ionicons name="person-circle" size={16} color="#9CA3AF" />
                 <Text style={styles.popupMetaText}>
@@ -756,13 +857,24 @@ export default function HomeScreen({ navigation }) {
                     </LinearGradient>
                   </TouchableOpacity>
                 )}
+
+                {(isAdmin || isSuperuser) && (
+                  <TouchableOpacity
+                    style={styles.popupDeleteBtn}
+                    onPress={() => handleRemoveAnnouncement(popupAnnouncement?.id)}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="trash-outline" size={15} color="#DC2626" />
+                    <Text style={styles.popupDeleteText}>Remove</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
           </View>
         </View>
       </Modal>
 
-      {/* ── Admin Post New Announcement Modal ── */}
+      {/* ── Admin Post New Announcement Modal with Deadline Timelines ── */}
       <Modal
         visible={showPostModal}
         transparent={true}
@@ -775,7 +887,7 @@ export default function HomeScreen({ navigation }) {
               <View>
                 <Text style={styles.postModalTitle}>📢 Post Community Announcement</Text>
                 <Text style={styles.postModalSub}>
-                  Will pop up on all members' Home Screens & post to Chat
+                  Set deadline timeline & broadcast to members
                 </Text>
               </View>
               <TouchableOpacity onPress={() => setShowPostModal(false)}>
@@ -795,13 +907,45 @@ export default function HomeScreen({ navigation }) {
 
               <Text style={styles.inputLabel}>Message / Notice *</Text>
               <TextInput
-                style={[styles.textInput, { height: 75, textAlignVertical: 'top' }]}
+                style={[styles.textInput, { height: 70, textAlignVertical: 'top' }]}
                 placeholder="Write detailed announcement for members..."
                 placeholderTextColor="#9CA3AF"
                 value={newMessage}
                 onChangeText={setNewMessage}
                 multiline
               />
+
+              <Text style={styles.inputLabel}>Deadline Timeline *</Text>
+              <View style={styles.catChipsRow}>
+                {[
+                  { id: 'today', label: '⚡ Today (11:59 PM)' },
+                  { id: '24h', label: '⏳ 24 Hours' },
+                  { id: '3d', label: '📅 3 Days' },
+                  { id: 'navratri', label: '🪔 End of Navratri' },
+                  { id: 'custom', label: '✏️ Custom' },
+                  { id: 'none', label: '♾️ None' },
+                ].map(d => (
+                  <TouchableOpacity
+                    key={d.id}
+                    style={[styles.catChip, newDeadlineType === d.id && styles.catChipActive]}
+                    onPress={() => setNewDeadlineType(d.id)}
+                  >
+                    <Text style={[styles.catChipText, newDeadlineType === d.id && styles.catChipTextActive]}>
+                      {d.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {newDeadlineType === 'custom' && (
+                <TextInput
+                  style={[styles.textInput, { marginTop: 6, marginBottom: 8 }]}
+                  placeholder="e.g. 12 Oct 2026, 8:00 PM or Before Sunday Aarti"
+                  placeholderTextColor="#9CA3AF"
+                  value={customDeadline}
+                  onChangeText={setCustomDeadline}
+                />
+              )}
 
               <Text style={styles.inputLabel}>Notice Category *</Text>
               <View style={styles.catChipsRow}>
@@ -860,11 +1004,118 @@ export default function HomeScreen({ navigation }) {
                     style={styles.publishBtnGradient}
                   >
                     <Ionicons name="megaphone" size={16} color="#FFFFFF" />
-                    <Text style={styles.publishBtnText}>Publish Popup Alert</Text>
+                    <Text style={styles.publishBtnText}>Publish Announcement</Text>
                   </LinearGradient>
                 </TouchableOpacity>
               </View>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Community Announcements Manager Modal (View All & Remove with Deadlines) ── */}
+      <Modal
+        visible={showAnnouncementsListModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowAnnouncementsListModal(false)}
+      >
+        <View style={styles.popupOverlay}>
+          <View style={[styles.popupCard, { maxHeight: '85%' }]}>
+            <View style={styles.annListModalHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.annListModalTitle}>📢 Community Announcements</Text>
+                <Text style={styles.annListModalSub}>
+                  Active alerts with deadlines & timelines ({allowedAnnouncements.length})
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowAnnouncementsListModal(false)} style={styles.annListCloseBtn}>
+                <Ionicons name="close" size={22} color="#4B5563" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ maxHeight: 380 }} showsVerticalScrollIndicator={true}>
+              {allowedAnnouncements.map((ann) => (
+                <View key={ann.id} style={styles.annListItemCard}>
+                  <View style={styles.annListItemTop}>
+                    <View style={styles.annListTagPill}>
+                      <Text style={styles.annListTagText}>
+                        {ann.category === 'poll_alert'
+                          ? '🗳️ POLL'
+                          : ann.category === 'aarti_update'
+                          ? '🪔 AARTI'
+                          : ann.category === 'task_reminder'
+                          ? '📋 TASK'
+                          : '📢 NOTICE'}
+                      </Text>
+                    </View>
+                    {ann.deadlineTimeline && ann.deadlineTimeline !== 'No Deadline' && (
+                      <View style={styles.annListTimelineBadge}>
+                        <Ionicons name="hourglass" size={11} color="#DC2626" />
+                        <Text style={styles.annListTimelineText}>
+                          {ann.deadlineTimeline}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+
+                  <Text style={styles.annListItemTitle}>{ann.title}</Text>
+                  <Text style={styles.annListItemMessage}>{ann.message}</Text>
+
+                  <View style={styles.annListItemFooter}>
+                    <Text style={styles.annListItemPostedBy}>
+                      By {ann.postedBy?.name || 'Admin'}
+                    </Text>
+
+                    <View style={styles.annListItemBtns}>
+                      {ann.linkScreen && ann.linkScreen !== 'HomeScreen' && (
+                        <TouchableOpacity
+                          style={styles.annActionLinkBtn}
+                          onPress={() => {
+                            setShowAnnouncementsListModal(false);
+                            navigation.navigate(ann.linkScreen);
+                          }}
+                        >
+                          <Text style={styles.annActionLinkText}>Open →</Text>
+                        </TouchableOpacity>
+                      )}
+
+                      {(isAdmin || isSuperuser) && (
+                        <TouchableOpacity
+                          style={styles.annDeleteBtn}
+                          onPress={() => handleRemoveAnnouncement(ann.id)}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="trash-outline" size={14} color="#DC2626" />
+                          <Text style={styles.annDeleteBtnText}>Remove</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </View>
+                </View>
+              ))}
+
+              {allowedAnnouncements.length === 0 && (
+                <View style={styles.annListEmpty}>
+                  <Ionicons name="notifications-off-outline" size={36} color="#9CA3AF" />
+                  <Text style={styles.annListEmptyText}>No active announcements</Text>
+                </View>
+              )}
+            </ScrollView>
+
+            {(isAdmin || isSuperuser) && (
+              <TouchableOpacity
+                style={styles.annListAddNewBtn}
+                onPress={() => {
+                  setShowAnnouncementsListModal(false);
+                  setShowPostModal(true);
+                }}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="add-circle" size={18} color="#FFFFFF" />
+                <Text style={styles.annListAddNewText}>+ Create New Announcement</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </Modal>
@@ -1753,12 +2004,49 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     marginTop: 1,
   },
+  announcementTimelinePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#FEE2E2',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 4,
+    borderWidth: 0.5,
+    borderColor: '#FECACA',
+  },
+  announcementTimelinePillText: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: '#DC2626',
+  },
+  announcementBottomRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  viewAllAnnBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 3.5,
+    borderRadius: 8,
+    backgroundColor: '#EEF2FF',
+    borderWidth: 1,
+    borderColor: '#C7D2FE',
+  },
+  viewAllAnnBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#4338CA',
+  },
   postNoticeBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
-    alignSelf: 'flex-end',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
@@ -1777,6 +2065,181 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 16,
+  },
+  popupTimelineBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  popupTimelineText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#B91C1C',
+  },
+  popupDeleteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: '#FEE2E2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  popupDeleteText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#DC2626',
+  },
+
+  // ── Announcements List Manager Modal ──
+  annListModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+    backgroundColor: '#FAF5FF',
+  },
+  annListModalTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#4C1D95',
+  },
+  annListModalSub: {
+    fontSize: 11,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  annListCloseBtn: {
+    padding: 4,
+  },
+  annListItemCard: {
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+    padding: 14,
+  },
+  annListItemTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  annListTagPill: {
+    backgroundColor: '#EDE9FE',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  annListTagText: {
+    fontSize: 9.5,
+    fontWeight: '900',
+    color: '#7C3AED',
+  },
+  annListTimelineBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#FEF2F2',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  annListTimelineText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#DC2626',
+  },
+  annListItemTitle: {
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  annListItemMessage: {
+    fontSize: 12,
+    color: '#4B5563',
+    lineHeight: 17,
+    marginBottom: 8,
+  },
+  annListItemFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  annListItemPostedBy: {
+    fontSize: 10.5,
+    color: '#9CA3AF',
+    fontWeight: '600',
+  },
+  annListItemBtns: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  annActionLinkBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderRadius: 6,
+    backgroundColor: '#EDE9FE',
+  },
+  annActionLinkText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#6D28D9',
+  },
+  annDeleteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderRadius: 6,
+    backgroundColor: '#FEE2E2',
+  },
+  annDeleteBtnText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#DC2626',
+  },
+  annListEmpty: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+    gap: 8,
+  },
+  annListEmptyText: {
+    fontSize: 13,
+    color: '#9CA3AF',
+    fontWeight: '600',
+  },
+  annListAddNewBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    margin: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: '#DC2626',
+  },
+  annListAddNewText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
   popupCard: {
     width: '100%',

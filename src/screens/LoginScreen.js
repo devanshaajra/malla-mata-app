@@ -53,18 +53,11 @@ export default function LoginScreen({ navigation }) {
     }
   };
 
-  const fillCredentials = (type) => {
-    if (type === 'superuser') {
-      setIdentifier('Devansh');
-      setPassword('112754');
-      setLoginAs('admin');
-      showToast('Superuser Devansh loaded', 'info');
-    } else {
-      setIdentifier('priya');
-      setPassword('User@2026');
-      setLoginAs('user');
-      showToast('Member Priya loaded', 'info');
-    }
+  const fillCredentials = () => {
+    setIdentifier('priya');
+    setPassword('User@2026');
+    setLoginAs('user');
+    showToast('Member Priya credentials loaded', 'info');
   };
 
   return (
@@ -127,7 +120,7 @@ export default function LoginScreen({ navigation }) {
               <View style={styles.adminNotice}>
                 <Ionicons name="shield-outline" size={16} color="#B45309" />
                 <Text style={styles.adminNoticeText}>
-                  Superuser Devansh & Appointed Admins Only
+                  Authorized Admins & Committee Only
                 </Text>
               </View>
             ) : (
@@ -152,7 +145,7 @@ export default function LoginScreen({ navigation }) {
               />
               <TextInput
                 style={styles.input}
-                placeholder={loginAs === 'admin' ? 'Enter Admin Username (e.g. Devansh)' : 'Enter Email, Phone or Username'}
+                placeholder={loginAs === 'admin' ? 'Enter Admin Username or Email' : 'Enter Email, Phone or Username'}
                 placeholderTextColor="#94A3B8"
                 value={identifier}
                 onChangeText={setIdentifier}
@@ -232,21 +225,14 @@ export default function LoginScreen({ navigation }) {
 
             {/* Quick Demo Credentials */}
             <View style={styles.demoSection}>
-              <Text style={styles.demoTitle}>⚡ QUICK LOGIN</Text>
+              <Text style={styles.demoTitle}>⚡ SAMPLE MEMBER LOGIN</Text>
               <View style={styles.pillsRow}>
                 <TouchableOpacity
-                  style={[styles.pill, styles.pillSuperuser]}
-                  onPress={() => fillCredentials('superuser')}
-                >
-                  <Ionicons name="shield-checkmark" size={13} color="#B45309" />
-                  <Text style={styles.pillTextSuperuser}>Devansh (Superuser)</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
                   style={[styles.pill, styles.pillResident]}
-                  onPress={() => fillCredentials('resident')}
+                  onPress={fillCredentials}
                 >
                   <Ionicons name="person" size={13} color="#9A3412" />
-                  <Text style={styles.pillTextResident}>Member (priya / User@2026)</Text>
+                  <Text style={styles.pillTextResident}>Sample Member (priya / User@2026)</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -530,24 +516,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 10,
     borderWidth: 1,
-  },
-  pillSuperuser: {
-    backgroundColor: '#FEF3C7',
-    borderColor: '#FDE68A',
-  },
-  pillTextSuperuser: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#92400E',
-  },
-  pillAdmin: {
-    backgroundColor: '#DCFCE7',
-    borderColor: '#86EFAC',
-  },
-  pillTextAdmin: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#166534',
   },
   pillResident: {
     backgroundColor: '#FFEDD5',
