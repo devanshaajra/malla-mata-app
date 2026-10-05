@@ -7,11 +7,6 @@
     "icon": "./assets/icon.png",
     "scheme": "mallamata",
     "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./assets/icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#DC2626"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.mallamata.navratri",
@@ -22,7 +17,7 @@
       "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#DC2626",
-        "foregroundImage": "./assets/icon.png"
+        "foregroundImage": "./assets/adaptive-icon.png"
       }
     },
     "web": {
