@@ -1,0 +1,5 @@
+android/
+ios/
+.github/
+build-apk.bat
+eas.json
