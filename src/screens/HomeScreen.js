@@ -1129,7 +1129,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFDF7',
     position: 'relative',
     height: '100%',
+    maxHeight: '100%',
     width: '100%',
+    overflow: 'hidden',
   },
   divineEyesBgWrap: {
     position: 'absolute',
@@ -1329,6 +1331,7 @@ const styles = StyleSheet.create({
     flex: 1,
     width: '100%',
     height: '100%',
+    maxHeight: '100%',
     minHeight: 0,
     ...(Platform.OS === 'web' ? {
       overflowY: 'auto',

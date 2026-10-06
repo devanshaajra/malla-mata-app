@@ -31,6 +31,28 @@
           background: #FFFDF7;
         }
       }
+      /* Universal Scroll Resolution: ensure all flex containers shrink to viewport height */
+      .r-13awgt0, .r-1pi2tsx {
+        min-height: 0 !important;
+      }
+      /* All React Navigation stack screens and scene wrappers MUST allow vertical scrolling */
+      div[class*="r-105ug2t"],
+      div[data-testid="react-navigation-stack-scene"],
+      [data-testid="react-navigation-scene"] {
+        max-height: 100% !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        touch-action: pan-y !important;
+        overscroll-behavior-y: contain !important;
+      }
+      /* Ensure all ScrollView containers allow vertical scrolling and clamp to screen height */
+      div[style*="overflow-y: auto"], div[style*="overflow-y: scroll"], .r-overflowY-1rnoaur, [data-scrollable="true"] {
+        max-height: 100% !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        overscroll-behavior-y: contain !important;
+        touch-action: pan-y !important;
+      }
       /* Custom Navratri scrollbar styling */
       ::-webkit-scrollbar {
         width: 8px;
