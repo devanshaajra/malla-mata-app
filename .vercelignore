@@ -2,4 +2,5 @@ android/
 ios/
 .github/
 build-apk.bat
+build-apk-local.bat
 eas.json
