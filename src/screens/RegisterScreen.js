@@ -73,8 +73,9 @@ export default function RegisterScreen({ navigation }) {
         style={styles.container}
       >
         <ScrollView
+          style={styles.scrollContainer}
           contentContainerStyle={styles.scroll}
-          showsVerticalScrollIndicator={false}
+          showsVerticalScrollIndicator={true}
           keyboardShouldPersistTaps="handled"
         >
           {/* Header */}
@@ -238,11 +239,15 @@ export default function RegisterScreen({ navigation }) {
 const styles = StyleSheet.create({
   gradient: {
     flex: 1,
+    width: '100%',
     height: '100%',
-    maxHeight: '100%',
-    overflow: 'hidden',
   },
-  container: { flex: 1 },
+  container: { flex: 1, width: '100%', height: '100%' },
+  scrollContainer: {
+    flex: 1,
+    width: '100%',
+    ...(Platform.OS === 'web' ? { overflowY: 'auto' } : {}),
+  },
   scroll: {
     flexGrow: 1,
     paddingHorizontal: 18,

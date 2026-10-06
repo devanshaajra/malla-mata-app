@@ -2,6 +2,12 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { THEME_DAYS, AARTI_DATES, DEFAULT_ADMIN_CONTROLS } from '../utils/constants';
 import { broadcastSync, subscribeToSync } from '../utils/cloudSync';
+import {
+  createDatabaseBackup,
+  restoreDatabaseFromBackup,
+  getBackupSyncStatus,
+  cleanseFakeEntriesFromDatabase,
+} from '../utils/backupDatabase';
 
 const DataContext = createContext(null);
 
@@ -781,6 +787,8 @@ export function DataProvider({ children }) {
     platform: 'Android • iOS • Web',
   });
 
+  const [backupStatus, setBackupStatus] = useState(null);
+
   useEffect(() => {
     loadAll();
 
@@ -828,11 +836,41 @@ export function DataProvider({ children }) {
       }
     });
 
+    // 3. Hourly Database Backup Synchronization System & Integrity Protection
+    let backupTimer = null;
+    const initBackupSystem = async () => {
+      try {
+        // Cleanse any fake/test entries automatically on boot
+        await cleanseFakeEntriesFromDatabase();
+
+        // Check if backup is due (> 1 hour since last sync)
+        const status = await getBackupSyncStatus();
+        setBackupStatus(status);
+        if (status.isDue) {
+          await createDatabaseBackup('Automated Hourly Startup Sync');
+          const updatedStatus = await getBackupSyncStatus();
+          setBackupStatus(updatedStatus);
+        }
+
+        // Schedule automated sync every 1 hour (3,600,000 ms)
+        backupTimer = setInterval(async () => {
+          await createDatabaseBackup('Automated Scheduled Hourly Sync');
+          const st = await getBackupSyncStatus();
+          setBackupStatus(st);
+        }, 60 * 60 * 1000);
+      } catch (e) {
+        console.warn('Backup system initialization:', e);
+      }
+    };
+
+    initBackupSystem();
+
     return () => {
       if (bc) {
         try { bc.close(); } catch (e) {}
       }
       if (unsubscribeCloud) unsubscribeCloud();
+      if (backupTimer) clearInterval(backupTimer);
     };
   }, []);
 
@@ -1624,6 +1662,34 @@ export function DataProvider({ children }) {
   const parsedCarryForward = parseFloat(carryForwardBalance) || 0;
   const netBalance = (parsedCarryForward + totalFundsCollected + totalSponsorFunds) - totalExpenses;
 
+  // Database Backup, Restoration & Cleansing Methods
+  const triggerBackup = async (reason = 'Manual Safe Backup') => {
+    const res = await createDatabaseBackup(reason);
+    if (res?.success) {
+      const status = await getBackupSyncStatus();
+      setBackupStatus(status);
+    }
+    return res;
+  };
+
+  const triggerRestore = async () => {
+    const res = await restoreDatabaseFromBackup();
+    if (res?.success) {
+      await loadAll();
+      const status = await getBackupSyncStatus();
+      setBackupStatus(status);
+    }
+    return res;
+  };
+
+  const triggerCleanse = async () => {
+    const res = await cleanseFakeEntriesFromDatabase();
+    if (res?.success) {
+      await loadAll();
+    }
+    return res;
+  };
+
   const value = {
     loaded,
     funds, saveFund, resetFund, getFund,
@@ -1641,6 +1707,7 @@ export function DataProvider({ children }) {
     announcements, addAnnouncement, deleteAnnouncement,
     carryForwardBalance, saveCarryForwardBalance,
     syncStatus, triggerSync,
+    backupStatus, triggerBackup, triggerRestore, triggerCleanse,
     totalFundsCollected,
     totalSponsorFunds,
     totalExpenses,

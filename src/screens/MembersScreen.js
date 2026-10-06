@@ -426,10 +426,11 @@ export default function MembersScreen({ navigation }) {
 
       <FlatList
         data={displayedMembers}
+        style={styles.flatList}
         renderItem={renderItem}
         keyExtractor={item => item.id}
         contentContainerStyle={styles.list}
-        showsVerticalScrollIndicator={false}
+        showsVerticalScrollIndicator={true}
         ListHeaderComponent={
           <View style={styles.listHeader}>
             {isSuperuser && (
@@ -921,9 +922,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFDF7',
+    width: '100%',
     height: '100%',
-    maxHeight: '100%',
-    overflow: 'hidden',
+  },
+  flatList: {
+    flex: 1,
+    width: '100%',
+    ...(Platform.OS === 'web' ? { overflowY: 'auto' } : {}),
   },
   header: {
     flexDirection: 'row',

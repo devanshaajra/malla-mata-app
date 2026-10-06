@@ -26,17 +26,16 @@ export const getClientId = async () => {
  * Broadcast an update to all connected platforms (Android, iOS, Web)
  * Low payload, battery-efficient, fire-and-forget
  */
-export const broadcastSync = async (key, data) => {
+export const broadcastSync = async (key) => {
   try {
     const senderId = await getClientId();
+    // Privacy safeguard: only send opaque synchronization ping, never send confidential user data
     const payload = JSON.stringify({
       key,
-      data,
       senderId,
       timestamp: Date.now(),
     });
 
-    // Fire and forget, max 4s timeout
     const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
     const timeoutId = controller ? setTimeout(() => controller.abort(), 4000) : null;
 
@@ -45,7 +44,7 @@ export const broadcastSync = async (key, data) => {
       body: payload,
       headers: {
         'Title': `SYNC_${key}`,
-        'Priority': 'default',
+        'Priority': 'low',
         'Tags': 'arrows_counterclockwise',
       },
       signal: controller ? controller.signal : undefined,
@@ -53,9 +52,7 @@ export const broadcastSync = async (key, data) => {
       .then(() => {
         if (timeoutId) clearTimeout(timeoutId);
       })
-      .catch((err) => {
-        // Safe silent fail for offline / no internet situations
-      });
+      .catch(() => {});
   } catch (err) {
     // Non-blocking
   }

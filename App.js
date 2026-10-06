@@ -52,7 +52,6 @@ export default function App() {
             margin: 0 !important;
             padding: 0 !important;
             background: radial-gradient(circle at 50% 10%, #450A0A 0%, #1A0505 50%, #0F0202 100%) !important;
-            overflow: hidden !important;
           }
           #root {
             height: 100% !important;
@@ -61,7 +60,6 @@ export default function App() {
             flex-direction: column !important;
             align-items: center !important;
             justify-content: center !important;
-            overflow: hidden !important;
           }
           @media (max-width: 520px) {
             html, body, #root {
@@ -70,7 +68,6 @@ export default function App() {
               justify-content: flex-start !important;
               height: 100% !important;
               width: 100% !important;
-              overflow: hidden !important;
             }
           }
           input, textarea, select {
@@ -103,120 +100,59 @@ export default function App() {
         document.head.appendChild(style);
       }
 
-      // Universal scroller resolution for React Native Web
-      const getActiveScroller = (target) => {
-        let curr = target;
-        while (curr && curr !== document.body && curr !== document.documentElement) {
-          if (curr.scrollHeight > curr.clientHeight && curr.clientHeight > 0) {
-            const style = window.getComputedStyle(curr);
-            if (style.overflowY === 'auto' || style.overflowY === 'scroll') {
-              return curr;
+      // Passive wheel forwarder for desktop background clicks outside device frame
+      const handleDesktopOuterWheel = (e) => {
+        // Find scrollers inside the app frame
+        const scrollers = document.querySelectorAll('[data-scrollable="true"], div[style*="overflow-y: auto"], div[style*="overflow-y: scroll"], .r-150rngu');
+        for (let i = scrollers.length - 1; i >= 0; i--) {
+          const s = scrollers[i];
+          if (s && s.scrollHeight > s.clientHeight && s.clientHeight > 0) {
+            // Only forward if the mouse was outside this scroller
+            if (!s.contains(e.target)) {
+              s.scrollTop += e.deltaY;
             }
-          }
-          curr = curr.parentElement;
-        }
-
-        // RNW scroll container candidates
-        const candidates = document.querySelectorAll('[scrollable="true"], .r-150rngu, div[class*="r-150rngu"]');
-        for (let i = candidates.length - 1; i >= 0; i--) {
-          const el = candidates[i];
-          if (el.scrollHeight > el.clientHeight && el.clientHeight > 0) {
-            return el;
-          }
-        }
-
-        // Fallback: search all divs
-        const allDivs = document.querySelectorAll('div');
-        for (let i = allDivs.length - 1; i >= 0; i--) {
-          const el = allDivs[i];
-          if (el.scrollHeight > el.clientHeight && el.clientHeight > 0) {
-            const style = window.getComputedStyle(el);
-            if (style.overflowY === 'auto' || style.overflowY === 'scroll') {
-              return el;
-            }
-          }
-        }
-        return null;
-      };
-
-      // 1. Forward mouse wheel anywhere on desktop screen to the active scroller
-      const handleGlobalWheel = (e) => {
-        const scroller = getActiveScroller(e.target);
-        if (scroller) {
-          if (!scroller.contains(e.target)) {
-            scroller.scrollTop += e.deltaY;
+            break;
           }
         }
       };
 
-      // 2. Keyboard scrolling (ArrowDown, ArrowUp, PageDown, PageUp, Spacebar)
+      // Keyboard scrolling for desktop accessibility (Arrow keys, Page Up/Down)
       const handleGlobalKeyDown = (e) => {
         const tag = e.target?.tagName?.toLowerCase();
         if (tag === 'input' || tag === 'textarea' || e.target?.isContentEditable) return;
 
-        const scroller = getActiveScroller(e.target);
-        if (!scroller) return;
+        const scrollers = document.querySelectorAll('[data-scrollable="true"], div[style*="overflow-y: auto"], div[style*="overflow-y: scroll"], .r-150rngu');
+        let activeScroller = null;
+        for (let i = scrollers.length - 1; i >= 0; i--) {
+          const s = scrollers[i];
+          if (s && s.scrollHeight > s.clientHeight && s.clientHeight > 0) {
+            activeScroller = s;
+            break;
+          }
+        }
+        if (!activeScroller) return;
 
         if (e.key === 'ArrowDown') {
-          scroller.scrollTop += 60;
+          activeScroller.scrollTop += 60;
           e.preventDefault();
         } else if (e.key === 'ArrowUp') {
-          scroller.scrollTop -= 60;
+          activeScroller.scrollTop -= 60;
           e.preventDefault();
         } else if (e.key === 'PageDown' || (e.key === ' ' && !e.shiftKey)) {
-          scroller.scrollTop += scroller.clientHeight * 0.75;
+          activeScroller.scrollTop += activeScroller.clientHeight * 0.75;
           e.preventDefault();
         } else if (e.key === 'PageUp' || (e.key === ' ' && e.shiftKey)) {
-          scroller.scrollTop -= scroller.clientHeight * 0.75;
+          activeScroller.scrollTop -= activeScroller.clientHeight * 0.75;
           e.preventDefault();
         }
       };
 
-      // 3. Desktop Click-and-Drag to scroll (Touch emulation)
-      let isDragging = false;
-      let startY = 0;
-      let startScrollTop = 0;
-      let activeDragScroller = null;
-
-      const handleMouseDown = (e) => {
-        if (e.button !== 0) return;
-        const tag = e.target?.tagName?.toLowerCase();
-        if (tag === 'input' || tag === 'textarea' || tag === 'button') return;
-
-        const scroller = getActiveScroller(e.target);
-        if (!scroller) return;
-
-        isDragging = true;
-        startY = e.clientY;
-        startScrollTop = scroller.scrollTop;
-        activeDragScroller = scroller;
-      };
-
-      const handleMouseMove = (e) => {
-        if (!isDragging || !activeDragScroller) return;
-        const deltaY = e.clientY - startY;
-        if (Math.abs(deltaY) > 4) {
-          activeDragScroller.scrollTop = startScrollTop - deltaY;
-        }
-      };
-
-      const handleMouseUp = () => {
-        isDragging = false;
-        activeDragScroller = null;
-      };
-
-      window.addEventListener('wheel', handleGlobalWheel, { passive: true });
+      window.addEventListener('wheel', handleDesktopOuterWheel, { passive: true });
       window.addEventListener('keydown', handleGlobalKeyDown);
-      window.addEventListener('mousedown', handleMouseDown);
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
 
       return () => {
-        window.removeEventListener('wheel', handleGlobalWheel);
+        window.removeEventListener('wheel', handleDesktopOuterWheel);
         window.removeEventListener('keydown', handleGlobalKeyDown);
-        window.removeEventListener('mousedown', handleMouseDown);
-        window.removeEventListener('mousemove', handleMouseMove);
-        window.removeEventListener('mouseup', handleMouseUp);
       };
     }
   }, []);
@@ -290,6 +226,5 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     minHeight: 0,
-    overflow: 'hidden',
   },
 });

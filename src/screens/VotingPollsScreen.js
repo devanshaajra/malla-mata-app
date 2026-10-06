@@ -362,9 +362,10 @@ export default function VotingPollsScreen({ navigation }) {
       {/* Polls List */}
       <FlatList
         data={filteredPolls}
+        style={styles.flatList}
         keyExtractor={item => item.id}
         contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
+        showsVerticalScrollIndicator={true}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Ionicons name="stats-chart-outline" size={54} color="#C4B5FD" />
@@ -817,6 +818,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FAF5FF',
+    width: '100%',
+    height: '100%',
+  },
+  flatList: {
+    flex: 1,
+    width: '100%',
+    ...(Platform.OS === 'web' ? { overflowY: 'auto' } : {}),
   },
   header: {
     paddingTop: Platform.OS === 'ios' ? 44 : 14,

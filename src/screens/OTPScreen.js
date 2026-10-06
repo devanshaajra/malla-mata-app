@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, Platform,
+  View, Text, TextInput, TouchableOpacity, StyleSheet, Platform, ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -64,7 +64,7 @@ export default function OTPScreen({ route, navigation }) {
 
   return (
     <LinearGradient colors={['#FFFBEB', '#FFF7ED', '#FED7AA']} style={styles.gradient}>
-      <View style={styles.container}>
+      <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.container} showsVerticalScrollIndicator={true} keyboardShouldPersistTaps="handled">
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.8}>
           <Ionicons name="arrow-back" size={24} color="#991B1B" />
         </TouchableOpacity>
@@ -122,11 +122,11 @@ export default function OTPScreen({ route, navigation }) {
           </View>
 
           <View style={styles.hintBox}>
-            <Ionicons name="information-circle" size={18} color="#D97706" />
-            <Text style={styles.hintText}>For quick demo: Enter any 6 digits (e.g. 1 2 3 4 5 6)</Text>
+            <Ionicons name="shield-checkmark-outline" size={18} color="#15803D" />
+            <Text style={styles.hintText}>Encrypted & Secure Mobile OTP Verification</Text>
           </View>
         </View>
-      </View>
+      </ScrollView>
     </LinearGradient>
   );
 }
@@ -134,12 +134,16 @@ export default function OTPScreen({ route, navigation }) {
 const styles = StyleSheet.create({
   gradient: {
     flex: 1,
+    width: '100%',
     height: '100%',
-    maxHeight: '100%',
-    overflow: 'hidden',
+  },
+  scrollContainer: {
+    flex: 1,
+    width: '100%',
+    ...(Platform.OS === 'web' ? { overflowY: 'auto' } : {}),
   },
   container: {
-    flex: 1,
+    flexGrow: 1,
     justifyContent: 'center',
     padding: 24,
     maxWidth: 440,

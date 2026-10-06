@@ -186,7 +186,7 @@ export default function AnalyticsScreen({ navigation }) {
         <View style={{ width: 32 }} />
       </LinearGradient>
 
-      <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.body} showsVerticalScrollIndicator={true}>
         {/* Main Financial Balance Card */}
         <LinearGradient
           colors={['#7F1D1D', '#991B1B', '#B91C1C']}
@@ -680,9 +680,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFDF7',
+    width: '100%',
     height: '100%',
-    maxHeight: '100%',
-    overflow: 'hidden',
+  },
+  scrollContainer: {
+    flex: 1,
+    width: '100%',
+    ...(Platform.OS === 'web' ? { overflowY: 'auto' } : {}),
   },
   header: {
     flexDirection: 'row',

@@ -119,10 +119,11 @@ export default function SponsorsScreen({ navigation }) {
 
       <FlatList
         data={sponsors}
+        style={styles.flatList}
         renderItem={renderItem}
         keyExtractor={item => item.id}
         contentContainerStyle={styles.list}
-        showsVerticalScrollIndicator={false}
+        showsVerticalScrollIndicator={true}
         ListEmptyComponent={
           <View style={styles.empty}>
             <Ionicons name="heart-outline" size={52} color="#94A3B8" />
@@ -250,9 +251,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFDF7',
+    width: '100%',
     height: '100%',
-    maxHeight: '100%',
-    overflow: 'hidden',
+  },
+  flatList: {
+    flex: 1,
+    width: '100%',
+    ...(Platform.OS === 'web' ? { overflowY: 'auto' } : {}),
   },
   header: {
     flexDirection: 'row',

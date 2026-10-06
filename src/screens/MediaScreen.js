@@ -267,12 +267,13 @@ export default function MediaScreen({ navigation }) {
         <FlatList
           key={`mobile-grid-${numColumns}`}
           data={media}
+          style={styles.flatList}
           numColumns={numColumns}
           renderItem={renderGridItem}
           keyExtractor={item => item.id}
           contentContainerStyle={styles.gridContainer}
           columnWrapperStyle={styles.gridRowWrapper}
-          showsVerticalScrollIndicator={false}
+          showsVerticalScrollIndicator={true}
           ListEmptyComponent={
             <View style={styles.empty}>
               <Ionicons name="images-outline" size={52} color="#94A3B8" />
@@ -284,10 +285,11 @@ export default function MediaScreen({ navigation }) {
         <FlatList
           key="single-feed"
           data={media}
+          style={styles.flatList}
           renderItem={renderFeedItem}
           keyExtractor={item => item.id}
           contentContainerStyle={styles.feedContainer}
-          showsVerticalScrollIndicator={false}
+          showsVerticalScrollIndicator={true}
           ListEmptyComponent={
             <View style={styles.empty}>
               <Ionicons name="images-outline" size={52} color="#94A3B8" />
@@ -452,9 +454,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFDF7',
+    width: '100%',
     height: '100%',
-    maxHeight: '100%',
-    overflow: 'hidden',
+  },
+  flatList: {
+    flex: 1,
+    width: '100%',
+    ...(Platform.OS === 'web' ? { overflowY: 'auto' } : {}),
   },
   header: {
     flexDirection: 'row',

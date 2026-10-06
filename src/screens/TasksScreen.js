@@ -466,10 +466,11 @@ export default function TasksScreen({ navigation }) {
       {/* Tasks List */}
       <FlatList
         data={filteredTasks}
+        style={styles.flatList}
         renderItem={renderTaskCard}
         keyExtractor={item => item.id}
         contentContainerStyle={styles.listContainer}
-        showsVerticalScrollIndicator={false}
+        showsVerticalScrollIndicator={true}
         ListEmptyComponent={
           <View style={styles.emptyWrap}>
             <Ionicons name="checkbox-outline" size={54} color="#94A3B8" />
@@ -742,9 +743,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F8FAFC',
+    width: '100%',
     height: '100%',
-    maxHeight: '100%',
-    overflow: 'hidden',
+  },
+  flatList: {
+    flex: 1,
+    width: '100%',
+    ...(Platform.OS === 'web' ? { overflowY: 'auto' } : {}),
   },
   header: {
     flexDirection: 'row',
