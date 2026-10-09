@@ -264,10 +264,7 @@ export default function HomeScreen({ navigation }) {
           setScrollY(y);
         }}
         scrollEventThrottle={16}
-        style={[
-          styles.scrollContainer,
-          Platform.OS === 'web' && { overflowY: 'auto', WebkitOverflowScrolling: 'touch' },
-        ]}
+        style={styles.scrollContainer}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={true}
         nestedScrollEnabled={true}
@@ -1129,9 +1126,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFDF7',
     position: 'relative',
     height: '100%',
-    maxHeight: '100%',
     width: '100%',
-    overflow: 'hidden',
   },
   divineEyesBgWrap: {
     position: 'absolute',
@@ -1331,16 +1326,10 @@ const styles = StyleSheet.create({
     flex: 1,
     width: '100%',
     height: '100%',
-    maxHeight: '100%',
-    minHeight: 0,
-    ...(Platform.OS === 'web' ? {
-      overflowY: 'auto',
-      WebkitOverflowScrolling: 'touch',
-    } : {}),
   },
   scrollContent: {
     flexGrow: 1,
-    paddingBottom: 70,
+    paddingBottom: 80,
   },
   mainInnerContent: {
     padding: 16,
@@ -1736,25 +1725,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
   },
-  headerLogoBadge: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: '#FEF3C7',
-    marginRight: 10,
-    backgroundColor: '#78350F',
-    shadowColor: '#F59E0B',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  headerLogoImg: {
-    width: '100%',
-    height: '100%',
-  },
+  /* headerLogoBadge & headerLogoImg defined above (line ~1169) */
   shlokasContainer: {
     marginTop: 22,
     backgroundColor: '#FFFFFF',

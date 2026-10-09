@@ -51,9 +51,35 @@ const generateChecksum = (str) => {
   return Math.abs(hash).toString(16);
 };
 
-/**
- * Creates an instantaneous secure backup snapshot of all database collections
- */
+const SECURE_SALT = 'MallaMata2026_';
+
+const decodeSecure = (raw) => {
+  if (!raw) return null;
+  try {
+    if (raw.startsWith(SECURE_SALT)) {
+      const b64 = raw.slice(SECURE_SALT.length);
+      if (typeof atob === 'function') {
+        return JSON.parse(decodeURIComponent(escape(atob(b64))));
+      }
+    }
+    return JSON.parse(raw);
+  } catch {
+    try { return JSON.parse(raw); } catch { return null; }
+  }
+};
+
+const encodeSecure = (data) => {
+  try {
+    const json = JSON.stringify(data);
+    if (typeof btoa === 'function') {
+      return SECURE_SALT + btoa(unescape(encodeURIComponent(json)));
+    }
+    return json;
+  } catch {
+    return JSON.stringify(data);
+  }
+};
+
 export const createDatabaseBackup = async (reason = 'Hourly Auto-Sync') => {
   try {
     const snapshot = {};
@@ -63,10 +89,10 @@ export const createDatabaseBackup = async (reason = 'Hourly Auto-Sync') => {
       try {
         const raw = await AsyncStorage.getItem(key);
         if (raw) {
-          const parsed = JSON.parse(raw);
-          snapshot[key] = parsed;
+          snapshot[key] = raw; // Store the raw (potentially encoded) string directly for backup
+          const parsed = decodeSecure(raw);
           if (Array.isArray(parsed)) totalRecords += parsed.length;
-          else if (typeof parsed === 'object') totalRecords += Object.keys(parsed).length;
+          else if (typeof parsed === 'object' && parsed !== null) totalRecords += Object.keys(parsed).length;
         } else {
           snapshot[key] = null;
         }
@@ -150,7 +176,8 @@ export const restoreDatabaseFromBackup = async () => {
     let restoredCount = 0;
     for (const [key, collectionData] of Object.entries(backup.data)) {
       if (collectionData !== null && collectionData !== undefined) {
-        await AsyncStorage.setItem(key, JSON.stringify(collectionData));
+        // collectionData is the raw string from the snapshot
+        await AsyncStorage.setItem(key, typeof collectionData === 'string' ? collectionData : JSON.stringify(collectionData));
         restoredCount++;
       }
     }
@@ -208,15 +235,17 @@ export const cleanseFakeEntriesFromDatabase = async () => {
     const msgKey = '@mm_messages_v3';
     const rawMsgs = await AsyncStorage.getItem(msgKey);
     if (rawMsgs) {
-      const msgs = JSON.parse(rawMsgs);
-      const filtered = msgs.filter((m) => {
-        const text = (m.text || '').toLowerCase();
-        const isFake = text.includes('test test') || text.includes('fake') || text.includes('asdf');
-        if (isFake) cleansedItems++;
-        return !isFake;
-      });
-      if (filtered.length !== msgs.length) {
-        await AsyncStorage.setItem(msgKey, JSON.stringify(filtered));
+      const msgs = decodeSecure(rawMsgs);
+      if (msgs && Array.isArray(msgs)) {
+        const filtered = msgs.filter((m) => {
+          const text = (m.text || '').toLowerCase();
+          const isFake = text.includes('test test') || text.includes('fake') || text.includes('asdf');
+          if (isFake) cleansedItems++;
+          return !isFake;
+        });
+        if (filtered.length !== msgs.length) {
+          await AsyncStorage.setItem(msgKey, encodeSecure(filtered));
+        }
       }
     }
 
@@ -224,15 +253,17 @@ export const cleanseFakeEntriesFromDatabase = async () => {
     const expKey = '@mm_expenses_v3';
     const rawExp = await AsyncStorage.getItem(expKey);
     if (rawExp) {
-      const expenses = JSON.parse(rawExp);
-      const filtered = expenses.filter((e) => {
-        const name = (e.name || '').toLowerCase();
-        const isFake = name.includes('dummy') || name.includes('test expense') || name === 'test';
-        if (isFake) cleansedItems++;
-        return !isFake;
-      });
-      if (filtered.length !== expenses.length) {
-        await AsyncStorage.setItem(expKey, JSON.stringify(filtered));
+      const expenses = decodeSecure(rawExp);
+      if (expenses && Array.isArray(expenses)) {
+        const filtered = expenses.filter((e) => {
+          const name = (e.name || '').toLowerCase();
+          const isFake = name.includes('dummy') || name.includes('test expense') || name === 'test';
+          if (isFake) cleansedItems++;
+          return !isFake;
+        });
+        if (filtered.length !== expenses.length) {
+          await AsyncStorage.setItem(expKey, encodeSecure(filtered));
+        }
       }
     }
 
@@ -240,15 +271,17 @@ export const cleanseFakeEntriesFromDatabase = async () => {
     const spKey = '@mm_sponsors_v3';
     const rawSp = await AsyncStorage.getItem(spKey);
     if (rawSp) {
-      const sponsors = JSON.parse(rawSp);
-      const filtered = sponsors.filter((s) => {
-        const name = (s.name || '').toLowerCase();
-        const isFake = name.includes('fake') || name.includes('dummy') || name === 'test';
-        if (isFake) cleansedItems++;
-        return !isFake;
-      });
-      if (filtered.length !== sponsors.length) {
-        await AsyncStorage.setItem(spKey, JSON.stringify(filtered));
+      const sponsors = decodeSecure(rawSp);
+      if (sponsors && Array.isArray(sponsors)) {
+        const filtered = sponsors.filter((s) => {
+          const name = (s.name || '').toLowerCase();
+          const isFake = name.includes('fake') || name.includes('dummy') || name === 'test';
+          if (isFake) cleansedItems++;
+          return !isFake;
+        });
+        if (filtered.length !== sponsors.length) {
+          await AsyncStorage.setItem(spKey, encodeSecure(filtered));
+        }
       }
     }
 
@@ -256,15 +289,17 @@ export const cleanseFakeEntriesFromDatabase = async () => {
     const memKey = '@mm_members_v3';
     const rawMem = await AsyncStorage.getItem(memKey);
     if (rawMem) {
-      const members = JSON.parse(rawMem);
-      const filtered = members.filter((m) => {
-        const name = (m.name || '').toLowerCase();
-        const isFake = name.includes('fake user') || name === 'test test' || name === 'dummy';
-        if (isFake) cleansedItems++;
-        return !isFake;
-      });
-      if (filtered.length !== members.length) {
-        await AsyncStorage.setItem(memKey, JSON.stringify(filtered));
+      const members = decodeSecure(rawMem);
+      if (members && Array.isArray(members)) {
+        const filtered = members.filter((m) => {
+          const name = (m.name || '').toLowerCase();
+          const isFake = name.includes('fake user') || name === 'test test' || name === 'dummy';
+          if (isFake) cleansedItems++;
+          return !isFake;
+        });
+        if (filtered.length !== members.length) {
+          await AsyncStorage.setItem(memKey, encodeSecure(filtered));
+        }
       }
     }
 
@@ -273,3 +308,32 @@ export const cleanseFakeEntriesFromDatabase = async () => {
     return { success: false, error: err.message, cleansedItems };
   }
 };
+
+/**
+ * Purges ALL database records across all collections to prepare for 100% confidential data entry.
+ * Keeps superuser login intact, resets all funds, expenses, sponsors, members, messages,
+ * polls, announcements, media, and tasks to an empty pristine state.
+ * Immediately takes a clean backup snapshot.
+ */
+export const purgeAllDatabaseData = async () => {
+  try {
+    for (const key of DATABASE_COLLECTIONS) {
+      if (key !== '@mm_auth_accounts_v3') {
+        await AsyncStorage.removeItem(key);
+      }
+    }
+    // Also remove any legacy keys
+    await AsyncStorage.removeItem('@malla_mata_members');
+    await AsyncStorage.removeItem('@mm_funds_v2');
+    await AsyncStorage.removeItem('@mm_expenses_v2');
+    await AsyncStorage.removeItem('@mm_sponsors_v2');
+
+    // Create an immediate clean baseline backup snapshot
+    await createDatabaseBackup('Confidential Clean Wipe Baseline');
+
+    return { success: true, message: 'All database data purged successfully. Ready for confidential entry.' };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+

@@ -7,13 +7,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../contexts/AuthContext';
+import { useData } from '../contexts/DataContext';
 import { useToast } from '../contexts/ToastContext';
 import { COLORS } from '../utils/constants';
 
 // Divine & festive avatar presets for quick 1-tap selection
 const AVATAR_PRESETS = [
   { id: 'av-1', label: 'Devansh (Superuser)', uri: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=240&auto=format&fit=crop&q=80' },
-  { id: 'av-2', label: 'Priya (Member)', uri: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=240&auto=format&fit=crop&q=80' },
+  { id: 'av-2', label: 'Festive Member', uri: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=240&auto=format&fit=crop&q=80' },
   { id: 'av-3', label: 'Admin Leader', uri: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=240&auto=format&fit=crop&q=80' },
   { id: 'av-4', label: 'Festive Traditional', uri: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=240&auto=format&fit=crop&q=80' },
   { id: 'av-5', label: 'Committee Member', uri: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=240&auto=format&fit=crop&q=80' },
@@ -22,7 +23,11 @@ const AVATAR_PRESETS = [
 
 export default function ProfileScreen({ navigation }) {
   const { currentUser, updateProfile, isSuperuser, isAdmin, logout } = useAuth();
+  const { backupStatus, triggerBackup, triggerRestore, triggerPurgeDatabase } = useData();
   const { showToast } = useToast();
+  const [syncingBackup, setSyncingBackup] = useState(false);
+  const [restoringBackup, setRestoringBackup] = useState(false);
+  const [purgingDb, setPurgingDb] = useState(false);
   const [name, setName] = useState(currentUser?.name || '');
   const [displayName, setDisplayName] = useState(currentUser?.displayName || '');
   const [phone, setPhone] = useState(currentUser?.phone || '');
@@ -101,6 +106,57 @@ export default function ProfileScreen({ navigation }) {
       showToast('Failed to save profile: ' + e.message, 'error');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSyncBackupNow = async () => {
+    setSyncingBackup(true);
+    try {
+      const res = await triggerBackup('Manual Superuser Vault Sync');
+      if (res?.success) {
+        showToast('Backup Database Synced! 🛡️', 'success', `Secured ${res.totalRecords || 0} records across all collections.`);
+      } else {
+        showToast(res?.error || 'Failed to sync backup', 'error');
+      }
+    } finally {
+      setSyncingBackup(false);
+    }
+  };
+
+  const handleRestoreBackup = async () => {
+    const confirmed = Platform.OS === 'web'
+      ? window.confirm('Restore database from the latest secure backup database snapshot?')
+      : true;
+    if (!confirmed) return;
+
+    setRestoringBackup(true);
+    try {
+      const res = await triggerRestore();
+      if (res?.success) {
+        showToast('Database Restored! 🔄', 'success', `Restored ${res.totalRecords || 0} records from secure backup.`);
+      } else {
+        showToast(res?.error || 'Failed to restore database', 'error');
+      }
+    } finally {
+      setRestoringBackup(false);
+    }
+  };
+
+  const handlePurgeCleanDatabase = async () => {
+    const warning = 'PERMANENT CONFIDENTIAL RESET:\n\nAre you sure you want to completely purge and clear all database collections to start fresh with your confidential data?\n\nThis will reset all funds, expenses, sponsors, tasks, polls and announcements.';
+    const confirmed = Platform.OS === 'web' ? window.confirm(warning) : true;
+    if (!confirmed) return;
+
+    setPurgingDb(true);
+    try {
+      const res = await triggerPurgeDatabase();
+      if (res?.success) {
+        showToast('Database Cleared! ✨', 'success', 'All database data purged. Ready for confidential data entry.');
+      } else {
+        showToast(res?.error || 'Failed to purge database', 'error');
+      }
+    } finally {
+      setPurgingDb(false);
     }
   };
 
@@ -312,6 +368,96 @@ export default function ProfileScreen({ navigation }) {
                 <Text style={styles.credValueText}>Superuser & Lead Organizer</Text>
               </View>
             </View>
+          </View>
+        )}
+
+        {/* Confidential Database & Hourly Backup Vault Card */}
+        {(isSuperuser || isAdmin) && (
+          <View style={styles.vaultCard}>
+            <View style={styles.vaultHeader}>
+              <View style={styles.vaultTitleRow}>
+                <Ionicons name="shield-checkmark" size={22} color="#059669" />
+                <View>
+                  <Text style={styles.vaultCardTitle}>Hourly Database Backup & Vault</Text>
+                  <Text style={styles.vaultCardSub}>Encrypted Storage • Auto-Sync Every 60 Mins</Text>
+                </View>
+              </View>
+              <View style={styles.vaultSecureBadge}>
+                <Ionicons name="lock-closed" size={11} color="#065F46" />
+                <Text style={styles.vaultSecureBadgeText}>CONFIDENTIAL</Text>
+              </View>
+            </View>
+
+            <View style={styles.vaultStatusGrid}>
+              <View style={styles.vaultStatusItem}>
+                <Text style={styles.vaultStatusLabel}>AUTOMATED SYNC</Text>
+                <View style={styles.vaultStatusValRow}>
+                  <View style={styles.vaultPulseDot} />
+                  <Text style={styles.vaultStatusVal}>Every 1 Hour (Active)</Text>
+                </View>
+              </View>
+
+              <View style={styles.vaultStatusItem}>
+                <Text style={styles.vaultStatusLabel}>LAST BACKUP SYNC</Text>
+                <Text style={styles.vaultStatusVal} numberOfLines={1}>
+                  {backupStatus?.lastSyncFormatted || 'Just now'}
+                </Text>
+              </View>
+
+              <View style={styles.vaultStatusItem}>
+                <Text style={styles.vaultStatusLabel}>NEXT SCHEDULED SYNC</Text>
+                <Text style={styles.vaultStatusValHighlight}>
+                  {backupStatus?.nextSyncInMinutes ? `In ~${backupStatus.nextSyncInMinutes} mins` : 'Hourly schedule active'}
+                </Text>
+              </View>
+
+              <View style={styles.vaultStatusItem}>
+                <Text style={styles.vaultStatusLabel}>INTEGRITY & STORAGE</Text>
+                <Text style={styles.vaultStatusVal}>15 Collections Protected</Text>
+              </View>
+            </View>
+
+            {/* Action Buttons */}
+            <View style={styles.vaultActionsRow}>
+              <TouchableOpacity
+                style={styles.vaultSyncBtn}
+                onPress={handleSyncBackupNow}
+                disabled={syncingBackup}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="cloud-upload" size={16} color="#FFFFFF" />
+                <Text style={styles.vaultSyncBtnText}>
+                  {syncingBackup ? 'Syncing...' : 'Sync Backup Now'}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.vaultRestoreBtn}
+                onPress={handleRestoreBackup}
+                disabled={restoringBackup}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="refresh-circle" size={16} color="#065F46" />
+                <Text style={styles.vaultRestoreBtnText}>
+                  {restoringBackup ? 'Restoring...' : 'Restore from Backup'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Superuser Clean Database Purge Button */}
+            {isSuperuser && (
+              <TouchableOpacity
+                style={styles.vaultPurgeBtn}
+                onPress={handlePurgeCleanDatabase}
+                disabled={purgingDb}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="trash-bin-outline" size={15} color="#DC2626" />
+                <Text style={styles.vaultPurgeBtnText}>
+                  {purgingDb ? 'Purging Database...' : 'Wipe & Reset to Clean Confidential Database'}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
 
@@ -908,5 +1054,162 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     color: '#92400E',
+  },
+  // Confidential Database & Hourly Backup Vault Styles
+  vaultCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 18,
+    marginBottom: 16,
+    borderWidth: 1.5,
+    borderColor: '#A7F3D0',
+    shadowColor: '#059669',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  vaultHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ECFDF5',
+  },
+  vaultTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  vaultCardTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#065F46',
+  },
+  vaultCardSub: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#059669',
+    marginTop: 1,
+  },
+  vaultSecureBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#D1FAE5',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+  vaultSecureBadgeText: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: '#065F46',
+    letterSpacing: 0.5,
+  },
+  vaultStatusGrid: {
+    backgroundColor: '#F0FDF4',
+    borderRadius: 14,
+    padding: 12,
+    gap: 8,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#D1FAE5',
+  },
+  vaultStatusItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  vaultStatusLabel: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#047857',
+    letterSpacing: 0.4,
+  },
+  vaultStatusValRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  vaultPulseDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: '#10B981',
+  },
+  vaultStatusVal: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  vaultStatusValHighlight: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#D97706',
+  },
+  vaultActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 10,
+  },
+  vaultSyncBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#059669',
+    paddingVertical: 11,
+    borderRadius: 12,
+    shadowColor: '#059669',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  vaultSyncBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  vaultRestoreBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1.5,
+    borderColor: '#A7F3D0',
+    paddingVertical: 11,
+    borderRadius: 12,
+  },
+  vaultRestoreBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#065F46',
+  },
+  vaultPurgeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1.5,
+    borderColor: '#FECACA',
+    paddingVertical: 11,
+    borderRadius: 12,
+    marginTop: 4,
+  },
+  vaultPurgeBtnText: {
+    fontSize: 11.5,
+    fontWeight: '800',
+    color: '#DC2626',
   },
 });

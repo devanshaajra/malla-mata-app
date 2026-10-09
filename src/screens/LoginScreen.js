@@ -53,13 +53,6 @@ export default function LoginScreen({ navigation }) {
     }
   };
 
-  const fillCredentials = () => {
-    setIdentifier('priya');
-    setPassword('User@2026');
-    setLoginAs('user');
-    showToast('Member Priya credentials loaded', 'info');
-  };
-
   return (
     <LinearGradient colors={['#FFFBEB', '#FFF7ED', '#FED7AA']} style={styles.gradient}>
       <KeyboardAvoidingView
@@ -223,20 +216,6 @@ export default function LoginScreen({ navigation }) {
                 </View>
               </>
             )}
-
-            {/* Quick Demo Credentials */}
-            <View style={styles.demoSection}>
-              <Text style={styles.demoTitle}>⚡ SAMPLE MEMBER LOGIN</Text>
-              <View style={styles.pillsRow}>
-                <TouchableOpacity
-                  style={[styles.pill, styles.pillResident]}
-                  onPress={fillCredentials}
-                >
-                  <Ionicons name="person" size={13} color="#9A3412" />
-                  <Text style={styles.pillTextResident}>Sample Member (priya / User@2026)</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

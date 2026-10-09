@@ -145,7 +145,7 @@ export default function AddExpenseScreen({ navigation }) {
                 style={styles.input}
                 value={incurredBy}
                 onChangeText={setIncurredBy}
-                placeholder="e.g. Devansh (Superuser) or Priya Patel"
+                placeholder="e.g. Devansh Sharma or Committee Lead"
                 placeholderTextColor="#94A3B8"
               />
             </View>

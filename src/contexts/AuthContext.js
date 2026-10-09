@@ -11,7 +11,7 @@ const STORAGE_KEYS = {
   CURRENT_USER: '@malla_mata_current_user_v2',
 };
 
-// Default seed users with Superuser Devansh & Member Priya (No other hardcoded admin)
+// Seed users: Only Superuser Devansh (No demo/fake users)
 const DEFAULT_USERS = [
   {
     id: 'superuser-devansh',
@@ -25,19 +25,6 @@ const DEFAULT_USERS = [
     adminControls: { ...DEFAULT_ADMIN_CONTROLS },
     verified: true,
     photoURL: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop&q=80',
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'user-resident-priya',
-    name: 'Priya Patel',
-    username: 'priya',
-    email: 'priya.patel@gmail.com',
-    phone: '+91 98234 56789',
-    password: 'User@2026',
-    displayName: 'Priya Patel (A-4)',
-    role: ROLES.USER,
-    verified: true,
-    photoURL: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&auto=format&fit=crop&q=80',
     createdAt: new Date().toISOString(),
   },
 ];
@@ -74,8 +61,13 @@ export function AuthProvider({ children }) {
 
       let usersList = storedUsers ? JSON.parse(storedUsers) : DEFAULT_USERS;
 
-      // Remove any leftover demo admin user
-      usersList = usersList.filter(u => u.username?.toLowerCase() !== 'admin' && u.id !== 'admin-committee');
+      // Remove any leftover demo users (Admin, Priya)
+      usersList = usersList.filter(
+        u => u.username?.toLowerCase() !== 'admin' &&
+             u.id !== 'admin-committee' &&
+             u.username?.toLowerCase() !== 'priya' &&
+             u.id !== 'user-resident-priya'
+      );
 
       // Ensure superuser Devansh with 112754 always exists and is up to date
       const superIndex = usersList.findIndex(u => u.username?.toLowerCase() === 'devansh' || u.role === ROLES.SUPERUSER);

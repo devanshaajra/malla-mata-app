@@ -14,7 +14,7 @@ if (Platform.OS === 'web') {
 
 export default function App() {
   const { width } = useWindowDimensions();
-  const isMobileViewport = Platform.OS !== 'web' || width <= 520;
+  const isMobileViewport = Platform.OS !== 'web' || width <= 640;
 
   useEffect(() => {
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
@@ -48,24 +48,28 @@ export default function App() {
           }
           html, body {
             height: 100% !important;
+            min-height: 100% !important;
             width: 100% !important;
             margin: 0 !important;
             padding: 0 !important;
-            background: radial-gradient(circle at 50% 10%, #450A0A 0%, #1A0505 50%, #0F0202 100%) !important;
+            background: radial-gradient(circle at 50% 0%, #FEF2F2 0%, #FFFDF7 50%, #FEF3C7 100%) !important;
+            background-attachment: fixed !important;
+            overflow-x: hidden !important;
           }
           #root {
             height: 100% !important;
+            min-height: 100% !important;
             width: 100% !important;
             display: flex !important;
             flex-direction: column !important;
             align-items: center !important;
-            justify-content: center !important;
+            justifyContent: flex-start !important;
           }
-          @media (max-width: 520px) {
+          @media (max-width: 640px) {
             html, body, #root {
               background: #FFFDF7 !important;
               align-items: stretch !important;
-              justify-content: flex-start !important;
+              justifyContent: flex-start !important;
               height: 100% !important;
               width: 100% !important;
             }
@@ -73,24 +77,8 @@ export default function App() {
           input, textarea, select {
             font-family: 'Plus Jakarta Sans', sans-serif !important;
           }
-          /* Universal Scroll Resolution: ensure all flex containers shrink to viewport height */
-          .r-13awgt0, .r-1pi2tsx {
-            min-height: 0 !important;
-          }
-          /* All React Navigation stack screens and scene wrappers MUST allow vertical scrolling */
-          div[class*="r-105ug2t"],
-          div[data-testid="react-navigation-stack-scene"],
-          [data-testid="react-navigation-scene"] {
-            max-height: 100% !important;
-            overflow-y: auto !important;
-            -webkit-overflow-scrolling: touch !important;
-            touch-action: pan-y !important;
-            overscroll-behavior-y: contain !important;
-          }
-          /* Ensure all ScrollView containers allow vertical scrolling and clamp to screen height */
-          div[style*="overflow-y: auto"], div[style*="overflow-y: scroll"], .r-overflowY-1rnoaur, [data-scrollable="true"] {
-            max-height: 100% !important;
-            overflow-y: auto !important;
+          /* Ensure all ScrollView containers allow vertical scrolling */
+          div[style*="overflow-y: auto"], div[style*="overflow-y: scroll"], [data-scrollable="true"] {
             -webkit-overflow-scrolling: touch !important;
             overscroll-behavior-y: contain !important;
             touch-action: pan-y !important;
@@ -118,12 +106,12 @@ export default function App() {
 
       // Passive wheel forwarder for desktop background clicks outside device frame
       const handleDesktopOuterWheel = (e) => {
-        // Find scrollers inside the app frame
-        const scrollers = document.querySelectorAll('[data-scrollable="true"], div[style*="overflow-y: auto"], div[style*="overflow-y: scroll"], .r-150rngu');
+        // Find main vertical scroller inside the app
+        const scrollers = document.querySelectorAll('[data-scrollable="true"], [data-scrollview-vertical="true"], div[style*="overflow-y: auto"], div[style*="overflow-y: scroll"], .r-150rngu');
         for (let i = scrollers.length - 1; i >= 0; i--) {
           const s = scrollers[i];
-          if (s && s.scrollHeight > s.clientHeight && s.clientHeight > 0) {
-            // Only forward if the mouse was outside this scroller
+          if (s && s.scrollHeight > s.clientHeight + 1 && s.clientHeight > 0) {
+            // Forward wheel delta if cursor is outside this scroller
             if (!s.contains(e.target)) {
               s.scrollTop += e.deltaY;
             }
@@ -137,11 +125,11 @@ export default function App() {
         const tag = e.target?.tagName?.toLowerCase();
         if (tag === 'input' || tag === 'textarea' || e.target?.isContentEditable) return;
 
-        const scrollers = document.querySelectorAll('[data-scrollable="true"], div[style*="overflow-y: auto"], div[style*="overflow-y: scroll"], .r-150rngu');
+        const scrollers = document.querySelectorAll('[data-scrollable="true"], [data-scrollview-vertical="true"], div[style*="overflow-y: auto"], div[style*="overflow-y: scroll"], .r-150rngu');
         let activeScroller = null;
         for (let i = scrollers.length - 1; i >= 0; i--) {
           const s = scrollers[i];
-          if (s && s.scrollHeight > s.clientHeight && s.clientHeight > 0) {
+          if (s && s.scrollHeight > s.clientHeight + 1 && s.clientHeight > 0) {
             activeScroller = s;
             break;
           }
@@ -200,11 +188,12 @@ export default function App() {
 const styles = StyleSheet.create({
   rootContainer: {
     flex: 1,
-    backgroundColor: '#140303',
+    backgroundColor: '#FAF5ED',
     width: '100%',
     height: '100%',
+    minHeight: '100%',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
   },
   mobileRootContainer: {
     backgroundColor: '#FFFDF7',
@@ -218,24 +207,22 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     backgroundColor: '#FFFDF7',
-    overflow: 'hidden',
   },
   webDeviceFrame: {
     width: '100%',
-    maxWidth: 480,
-    height: '96vh',
-    maxHeight: 920,
-    borderRadius: 32,
-    marginVertical: 'auto',
-    borderWidth: 1.5,
-    borderColor: 'rgba(220, 38, 38, 0.25)',
+    maxWidth: 680,
+    height: '100%',
+    minHeight: '100%',
+    alignSelf: 'center',
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: '#FED7AA',
     shadowColor: '#DC2626',
-    shadowOffset: { width: 0, height: 16 },
-    shadowOpacity: 0.35,
-    shadowRadius: 36,
-    elevation: 24,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 28,
+    elevation: 8,
     position: 'relative',
-    overflow: 'hidden',
   },
   navigatorWrapper: {
     flex: 1,

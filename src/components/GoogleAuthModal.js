@@ -14,25 +14,7 @@ const PRESET_ACCOUNTS = [
     email: 'devansh.sharma.mallamata@gmail.com',
     phone: '+91 98765 43210',
     photoURL: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop&q=80',
-    badge: 'Superuser / community Lead',
-  },
-  {
-    id: 'google-2',
-    name: 'Priya Patel',
-    displayName: 'Priya Patel',
-    email: 'priya.patel.malla@gmail.com',
-    phone: '+91 98234 56789',
-    photoURL: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&auto=format&fit=crop&q=80',
-    badge: 'Resident (Block A-4)',
-  },
-  {
-    id: 'google-3',
-    name: 'Amit Verma',
-    displayName: 'Amit Verma',
-    email: 'amit.verma.navratri@gmail.com',
-    phone: '+91 98112 34567',
-    photoURL: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=200&auto=format&fit=crop&q=80',
-    badge: 'Committee Organizer',
+    badge: 'Superuser / Community Lead',
   },
 ];
 

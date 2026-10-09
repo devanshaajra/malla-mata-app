@@ -30,7 +30,7 @@ export default function AnalyticsScreen({ navigation }) {
 
   // Superuser Carry Forward edit state
   const [isEditingCarry, setIsEditingCarry] = useState(false);
-  const [carryInput, setCarryInput] = useState(carryForwardBalance?.toString() || '45000');
+  const [carryInput, setCarryInput] = useState(carryForwardBalance?.toString() || '0');
 
   // Payment Channel Drilldown Modal State
   const [drilldownChannel, setDrilldownChannel] = useState(null); // 'Cash' | 'UPI / Online' | 'Cheque' | 'Other'
