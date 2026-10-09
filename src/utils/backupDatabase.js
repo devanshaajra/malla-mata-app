@@ -356,3 +356,54 @@ export const purgeAllDatabaseData = async () => {
   }
 };
 
+/**
+ * Exports and downloads the encrypted database backup file (.json) for offline preservation.
+ */
+export const exportDatabaseToFile = async () => {
+  try {
+    await createDatabaseBackup('Manual Safe Export Snapshot');
+    const rawBackup = await AsyncStorage.getItem(BACKUP_KEYS.SNAPSHOT);
+    if (!rawBackup) {
+      return { success: false, error: 'No database backup found to export.' };
+    }
+
+    if (typeof document !== 'undefined') {
+      const blob = new Blob([rawBackup], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const dateStr = new Date().toISOString().slice(0, 10);
+      a.href = url;
+      a.download = `malla_mata_database_backup_${dateStr}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      return { success: true, message: 'Database backup downloaded successfully.' };
+    }
+
+    return { success: true, data: rawBackup };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
+/**
+ * Imports an external database backup file (.json) and restores all collections.
+ */
+export const importDatabaseFromFile = async (jsonString) => {
+  try {
+    if (!jsonString || typeof jsonString !== 'string') {
+      return { success: false, error: 'Empty or invalid file provided.' };
+    }
+    const parsed = JSON.parse(jsonString);
+    if (!parsed || !parsed.data) {
+      return { success: false, error: 'The provided file is not a valid Malla Mata backup.' };
+    }
+
+    await AsyncStorage.setItem(BACKUP_KEYS.SNAPSHOT, jsonString);
+    return await restoreDatabaseFromBackup();
+  } catch (err) {
+    return { success: false, error: 'Import failed: ' + err.message };
+  }
+};
+

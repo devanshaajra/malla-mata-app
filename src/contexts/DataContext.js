@@ -8,6 +8,8 @@ import {
   getBackupSyncStatus,
   cleanseFakeEntriesFromDatabase,
   purgeAllDatabaseData,
+  exportDatabaseToFile,
+  importDatabaseFromFile,
 } from '../utils/backupDatabase';
 
 const DataContext = createContext(null);
@@ -271,6 +273,7 @@ export function DataProvider({ children }) {
     }
   };
 
+  let autoBackupDebounce = null;
   const persist = async (key, data) => {
     try {
       await AsyncStorage.setItem(key, encodeSecure(data));
@@ -287,6 +290,16 @@ export function DataProvider({ children }) {
       }
       // Broadcast to cloud channel so Android APK, iOS and Web sync instantly
       broadcastSync(key, data);
+
+      // Auto-save incremental sync to backup database
+      if (autoBackupDebounce) clearTimeout(autoBackupDebounce);
+      autoBackupDebounce = setTimeout(async () => {
+        try {
+          await createDatabaseBackup('Auto-Save Incremental Sync');
+          const st = await getBackupSyncStatus();
+          setBackupStatus(st);
+        } catch (e) {}
+      }, 3000);
     } catch (e) {
       console.error('Persist error:', e);
     }
@@ -1037,6 +1050,20 @@ export function DataProvider({ children }) {
     return res;
   };
 
+  const triggerExportBackup = async () => {
+    return await exportDatabaseToFile();
+  };
+
+  const triggerImportBackup = async (jsonString) => {
+    const res = await importDatabaseFromFile(jsonString);
+    if (res?.success) {
+      await loadAll();
+      const status = await getBackupSyncStatus();
+      setBackupStatus(status);
+    }
+    return res;
+  };
+
   const value = {
     loaded,
     funds, saveFund, resetFund, getFund,
@@ -1055,6 +1082,7 @@ export function DataProvider({ children }) {
     carryForwardBalance, saveCarryForwardBalance,
     syncStatus, triggerSync,
     backupStatus, triggerBackup, triggerRestore, triggerCleanse, triggerPurgeDatabase,
+    triggerExportBackup, triggerImportBackup,
     totalFundsCollected,
     totalSponsorFunds,
     totalExpenses,

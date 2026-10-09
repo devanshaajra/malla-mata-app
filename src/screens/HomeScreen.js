@@ -16,7 +16,7 @@ export default function HomeScreen({ navigation }) {
   const {
     totalFundsCollected, totalSponsorFunds, totalExpenses, funds,
     carryForwardBalance, netBalance, tasks, announcements, addAnnouncement, deleteAnnouncement, polls,
-    syncStatus, triggerSync
+    syncStatus, triggerSync, triggerBackup
   } = useData();
   const [activeBannerIdx, setActiveBannerIdx] = useState(0);
   const [activeShlokaIdx, setActiveShlokaIdx] = useState(0);
@@ -337,18 +337,19 @@ export default function HomeScreen({ navigation }) {
             <Text style={styles.aartiHeaderText}>11 - 19 Oct 2026</Text>
           </View>
 
-          {/* Cross-Platform Real-Time Sync Indicator */}
+          {/* Cross-Platform Real-Time Sync & Hourly Backup Indicator */}
           <TouchableOpacity
             style={styles.syncStatusPill}
             onPress={async () => {
               await triggerSync();
+              if (triggerBackup) await triggerBackup('Header Sync Pill');
             }}
             activeOpacity={0.75}
           >
             <View style={[styles.syncDot, syncStatus?.isSyncing && styles.syncDotPulsing]} />
-            <Ionicons name={syncStatus?.isSyncing ? 'sync' : 'cloud-done'} size={12} color="#FFFFFF" />
+            <Ionicons name={syncStatus?.isSyncing ? 'sync' : 'shield-checkmark'} size={12} color="#FFFFFF" />
             <Text style={styles.syncStatusText}>
-              {syncStatus?.isSyncing ? 'Syncing...' : 'Live Synced'}
+              {syncStatus?.isSyncing ? 'Syncing...' : 'Hourly Backup: Active'}
             </Text>
           </TouchableOpacity>
         </View>

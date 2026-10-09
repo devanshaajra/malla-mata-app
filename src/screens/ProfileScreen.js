@@ -23,7 +23,14 @@ const AVATAR_PRESETS = [
 
 export default function ProfileScreen({ navigation }) {
   const { currentUser, updateProfile, isSuperuser, isAdmin, logout } = useAuth();
-  const { backupStatus, triggerBackup, triggerRestore, triggerPurgeDatabase } = useData();
+  const {
+    backupStatus,
+    triggerBackup,
+    triggerRestore,
+    triggerPurgeDatabase,
+    triggerExportBackup,
+    triggerImportBackup,
+  } = useData();
   const { showToast } = useToast();
   const [syncingBackup, setSyncingBackup] = useState(false);
   const [restoringBackup, setRestoringBackup] = useState(false);
@@ -157,6 +164,53 @@ export default function ProfileScreen({ navigation }) {
       }
     } finally {
       setPurgingDb(false);
+    }
+  };
+
+  const handleExportBackup = async () => {
+    try {
+      const res = await triggerExportBackup();
+      if (res?.success) {
+        showToast('Database Backup Exported! 📥', 'success', 'Downloaded secure backup JSON file to your device.');
+      } else {
+        showToast(res?.error || 'Failed to export backup', 'error');
+      }
+    } catch (e) {
+      showToast(e.message, 'error');
+    }
+  };
+
+  const handleImportBackup = async () => {
+    if (typeof document === 'undefined') return;
+    try {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.json,application/json';
+      input.onchange = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+          const content = event.target?.result;
+          if (content) {
+            setRestoringBackup(true);
+            try {
+              const res = await triggerImportBackup(content);
+              if (res?.success) {
+                showToast('Database Restored from File! 🔄', 'success', `Restored ${res.totalRecords || 0} records.`);
+              } else {
+                showToast(res?.error || 'Import failed', 'error');
+              }
+            } finally {
+              setRestoringBackup(false);
+            }
+          }
+        };
+        reader.readAsText(file);
+      };
+      input.click();
+    } catch (e) {
+      showToast(e.message, 'error');
     }
   };
 
@@ -441,6 +495,28 @@ export default function ProfileScreen({ navigation }) {
                 <Text style={styles.vaultRestoreBtnText}>
                   {restoringBackup ? 'Restoring...' : 'Restore from Backup'}
                 </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Offline Export / Import Safe Maintenance */}
+            <View style={styles.vaultActionsRow}>
+              <TouchableOpacity
+                style={styles.vaultExportBtn}
+                onPress={handleExportBackup}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="download-outline" size={15} color="#1E40AF" />
+                <Text style={styles.vaultExportBtnText}>Download Backup JSON</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.vaultImportBtn}
+                onPress={handleImportBackup}
+                disabled={restoringBackup}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="cloud-upload-outline" size={15} color="#4338CA" />
+                <Text style={styles.vaultImportBtnText}>Upload / Restore File</Text>
               </TouchableOpacity>
             </View>
 
@@ -1211,5 +1287,39 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     fontWeight: '800',
     color: '#DC2626',
+  },
+  vaultExportBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1.5,
+    borderColor: '#BFDBFE',
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  vaultExportBtnText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#1E40AF',
+  },
+  vaultImportBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    backgroundColor: '#EEF2FF',
+    borderWidth: 1.5,
+    borderColor: '#C7D2FE',
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  vaultImportBtnText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#4338CA',
   },
 });
