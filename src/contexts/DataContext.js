@@ -219,6 +219,14 @@ export function DataProvider({ children }) {
 
   const loadAll = async () => {
     try {
+      // 1. One-time clean confidential database migration: ensure all old demo/sample data is purged
+      const CONFIDENTIAL_CLEAN_KEY = '@mm_confidential_db_clean_v7';
+      const isClean = await AsyncStorage.getItem(CONFIDENTIAL_CLEAN_KEY);
+      if (!isClean) {
+        await purgeAllDatabaseData();
+        await AsyncStorage.setItem(CONFIDENTIAL_CLEAN_KEY, 'true');
+      }
+
       const keys = Object.values(KEYS);
       const results = await AsyncStorage.multiGet(keys);
       const map = {};

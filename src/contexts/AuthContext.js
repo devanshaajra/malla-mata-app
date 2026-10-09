@@ -61,12 +61,15 @@ export function AuthProvider({ children }) {
 
       let usersList = storedUsers ? JSON.parse(storedUsers) : DEFAULT_USERS;
 
-      // Remove any leftover demo users (Admin, Priya)
+      // Remove any leftover demo users (Admin, Priya, sample, test accounts)
       usersList = usersList.filter(
         u => u.username?.toLowerCase() !== 'admin' &&
              u.id !== 'admin-committee' &&
              u.username?.toLowerCase() !== 'priya' &&
-             u.id !== 'user-resident-priya'
+             u.id !== 'user-resident-priya' &&
+             !u.username?.toLowerCase().includes('demo') &&
+             !u.username?.toLowerCase().includes('sample') &&
+             !u.name?.toLowerCase().includes('demo')
       );
 
       // Ensure superuser Devansh with 112754 always exists and is up to date

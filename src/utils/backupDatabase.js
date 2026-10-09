@@ -317,21 +317,40 @@ export const cleanseFakeEntriesFromDatabase = async () => {
  */
 export const purgeAllDatabaseData = async () => {
   try {
-    for (const key of DATABASE_COLLECTIONS) {
-      if (key !== '@mm_auth_accounts_v3') {
-        await AsyncStorage.removeItem(key);
-      }
+    const emptyCollections = {
+      '@mm_funds_v3': encodeSecure({}),
+      '@mm_expenses_v3': encodeSecure([]),
+      '@mm_sponsors_v3': encodeSecure([]),
+      '@mm_messages_v3': encodeSecure([]),
+      '@mm_members_v3': encodeSecure([]),
+      '@malla_mata_members': encodeSecure([]),
+      '@mm_qrcodes_v3': encodeSecure([]),
+      '@mm_themes_v3': encodeSecure({}),
+      '@mm_attendance_v3': encodeSecure({}),
+      '@mm_media_v3': encodeSecure([]),
+      '@mm_tasks_v3': encodeSecure([]),
+      '@mm_budget_v3': encodeSecure({}),
+      '@mm_carry_forward_v3': encodeSecure('0'),
+      '@mm_polls_v3': encodeSecure([]),
+      '@mm_announcements_v3': encodeSecure([]),
+    };
+
+    for (const [key, val] of Object.entries(emptyCollections)) {
+      await AsyncStorage.setItem(key, val);
     }
-    // Also remove any legacy keys
-    await AsyncStorage.removeItem('@malla_mata_members');
+
+    // Also remove legacy keys
     await AsyncStorage.removeItem('@mm_funds_v2');
     await AsyncStorage.removeItem('@mm_expenses_v2');
     await AsyncStorage.removeItem('@mm_sponsors_v2');
+    await AsyncStorage.removeItem('@mm_funds_v1');
+    await AsyncStorage.removeItem('@mm_expenses_v1');
+    await AsyncStorage.removeItem('@mm_sponsors_v1');
 
-    // Create an immediate clean baseline backup snapshot
-    await createDatabaseBackup('Confidential Clean Wipe Baseline');
+    // Create an immediate clean baseline backup snapshot and sync
+    await createDatabaseBackup('Confidential Clean Database Baseline - All Demo Data Removed');
 
-    return { success: true, message: 'All database data purged successfully. Ready for confidential entry.' };
+    return { success: true, message: 'All demo data removed successfully. Database synced with backup database.' };
   } catch (err) {
     return { success: false, error: err.message };
   }
