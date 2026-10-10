@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { saveCollectionToCloud, fetchCollectionFromCloud } from '../services/cloudDatabase';
 
 /**
  * SECURE BACKUP DATABASE & INTEGRITY SYSTEM
@@ -10,6 +11,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
  * 3. Point-in-time full restoration capability
  * 4. Fake / test entry cleansing and data sanitization
  * 5. Privacy safeguards to prevent data breaches
+ * 6. Cloud-synchronized backup snapshot redundancy
  */
 
 export const BACKUP_KEYS = {
@@ -26,6 +28,7 @@ const DATABASE_COLLECTIONS = [
   '@mm_sponsors_v3',
   '@mm_messages_v3',
   '@mm_members_v3',
+  '@malla_mata_members',
   '@mm_qrcodes_v3',
   '@mm_themes_v3',
   '@mm_attendance_v3',
@@ -35,6 +38,7 @@ const DATABASE_COLLECTIONS = [
   '@mm_carry_forward_v3',
   '@mm_polls_v3',
   '@mm_announcements_v3',
+  '@malla_mata_users_v2',
   '@mm_auth_accounts_v3',
 ];
 
@@ -121,6 +125,11 @@ export const createDatabaseBackup = async (reason = 'Hourly Auto-Sync') => {
     await AsyncStorage.setItem(BACKUP_KEYS.SNAPSHOT, JSON.stringify(backupPayload));
     await AsyncStorage.setItem(BACKUP_KEYS.LAST_SYNC, timestamp.toString());
 
+    // Also sync backup snapshot to Cloud Database for off-device redundancy
+    try {
+      await saveCollectionToCloud('backup_vault', backupPayload);
+    } catch (e) {}
+
     // Record in rolling backup history (keeps last 10 points)
     let history = [];
     try {
@@ -155,9 +164,19 @@ export const createDatabaseBackup = async (reason = 'Hourly Auto-Sync') => {
  */
 export const restoreDatabaseFromBackup = async () => {
   try {
-    const rawBackup = await AsyncStorage.getItem(BACKUP_KEYS.SNAPSHOT);
+    let rawBackup = await AsyncStorage.getItem(BACKUP_KEYS.SNAPSHOT);
     if (!rawBackup) {
-      return { success: false, error: 'No backup database found to restore.' };
+      try {
+        const cloudVault = await fetchCollectionFromCloud('backup_vault');
+        if (cloudVault.success && cloudVault.data && cloudVault.data.data) {
+          rawBackup = JSON.stringify(cloudVault.data);
+          await AsyncStorage.setItem(BACKUP_KEYS.SNAPSHOT, rawBackup);
+        }
+      } catch (e) {}
+    }
+
+    if (!rawBackup) {
+      return { success: false, error: 'No local or cloud backup database found to restore.' };
     }
 
     const backup = JSON.parse(rawBackup);

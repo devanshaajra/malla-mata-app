@@ -10,6 +10,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
 import { useToast } from '../contexts/ToastContext';
 import { COLORS } from '../utils/constants';
+import { DEFAULT_FIREBASE_DB_URL, FIREBASE_SETUP_GUIDE } from '../config/databaseConfig';
 
 // Divine & festive avatar presets for quick 1-tap selection
 const AVATAR_PRESETS = [
@@ -30,11 +31,23 @@ export default function ProfileScreen({ navigation }) {
     triggerPurgeDatabase,
     triggerExportBackup,
     triggerImportBackup,
+    cloudDbStatus,
+    pullAllFromCloud,
+    pushAllToCloud,
+    updateFirebaseUrl,
+    testFirebaseConnection,
   } = useData();
   const { showToast } = useToast();
   const [syncingBackup, setSyncingBackup] = useState(false);
   const [restoringBackup, setRestoringBackup] = useState(false);
   const [purgingDb, setPurgingDb] = useState(false);
+  const [pullingCloud, setPullingCloud] = useState(false);
+  const [pushingCloud, setPushingCloud] = useState(false);
+  const [showFirebaseModal, setShowFirebaseModal] = useState(false);
+  const [customFirebaseUrlInput, setCustomFirebaseUrlInput] = useState('');
+  const [testingDbConnection, setTestingDbConnection] = useState(false);
+  const [testDbResult, setTestDbResult] = useState(null);
+  const [showSetupGuide, setShowSetupGuide] = useState(false);
   const [name, setName] = useState(currentUser?.name || '');
   const [displayName, setDisplayName] = useState(currentUser?.displayName || '');
   const [phone, setPhone] = useState(currentUser?.phone || '');
@@ -211,6 +224,79 @@ export default function ProfileScreen({ navigation }) {
       input.click();
     } catch (e) {
       showToast(e.message, 'error');
+    }
+  };
+
+  const handlePullCloudData = async () => {
+    setPullingCloud(true);
+    try {
+      const res = await pullAllFromCloud();
+      if (res?.success) {
+        showToast('Data Fetched from Cloud Database! 🌐', 'success', res.message || 'All records updated on website.');
+      } else {
+        showToast(res?.error || 'Failed to fetch from Cloud Database', 'error');
+      }
+    } finally {
+      setPullingCloud(false);
+    }
+  };
+
+  const handlePushCloudData = async () => {
+    setPushingCloud(true);
+    try {
+      const res = await pushAllToCloud();
+      if (res?.success) {
+        showToast('Saved to Cloud Database! ☁️', 'success', res.message || 'All local records uploaded to Firebase.');
+      } else {
+        showToast(res?.error || 'Failed to push to Cloud Database', 'error');
+      }
+    } finally {
+      setPushingCloud(false);
+    }
+  };
+
+  const handleOpenFirebaseModal = () => {
+    setCustomFirebaseUrlInput(cloudDbStatus?.dbUrl || DEFAULT_FIREBASE_DB_URL);
+    setTestDbResult(null);
+    setShowFirebaseModal(true);
+  };
+
+  const handleTestDbProbe = async () => {
+    if (!customFirebaseUrlInput.trim()) {
+      showToast('Please enter a Firebase Database URL', 'error');
+      return;
+    }
+    setTestingDbConnection(true);
+    setTestDbResult(null);
+    try {
+      const probe = await testFirebaseConnection(customFirebaseUrlInput.trim());
+      setTestDbResult(probe);
+      if (probe.success) {
+        showToast('Connection Successful! 🟢', 'success', 'Firebase Database reachable and responsive.');
+      } else {
+        showToast('Connection Note: ' + (probe.error || 'Unable to connect'), 'error');
+      }
+    } finally {
+      setTestingDbConnection(false);
+    }
+  };
+
+  const handleSaveFirebaseUrl = async () => {
+    if (!customFirebaseUrlInput.trim()) {
+      showToast('Please enter a Firebase Database URL', 'error');
+      return;
+    }
+    setTestingDbConnection(true);
+    try {
+      const res = await updateFirebaseUrl(customFirebaseUrlInput.trim());
+      if (res?.success) {
+        setShowFirebaseModal(false);
+        showToast('Firebase Database Configured! 🚀', 'success', 'App connected to your Firebase Realtime Database.');
+      } else {
+        showToast('Could not save URL: ' + (res?.error || 'Unknown error'), 'error');
+      }
+    } finally {
+      setTestingDbConnection(false);
     }
   };
 
@@ -425,6 +511,118 @@ export default function ProfileScreen({ navigation }) {
           </View>
         )}
 
+        {/* Firebase Cloud Database & Live Website Synchronization Card */}
+        {(isSuperuser || isAdmin) && (
+          <View style={styles.cloudDbCard}>
+            <View style={styles.cloudDbHeader}>
+              <View style={styles.cloudDbTitleRow}>
+                <Ionicons name="cloud-done" size={22} color="#0284C7" />
+                <View>
+                  <Text style={styles.cloudDbCardTitle}>Firebase Cloud Database & Sync</Text>
+                  <Text style={styles.cloudDbCardSub}>Live Sync • Website • Android APK • iOS</Text>
+                </View>
+              </View>
+              <View style={[
+                styles.cloudDbStatusBadge,
+                { backgroundColor: cloudDbStatus?.isConnected ? '#ECFDF5' : '#FFFBEB', borderColor: cloudDbStatus?.isConnected ? '#A7F3D0' : '#FDE68A' }
+              ]}>
+                <View style={[
+                  styles.cloudDbPulseDot,
+                  { backgroundColor: cloudDbStatus?.isConnected ? '#10B981' : '#F59E0B' }
+                ]} />
+                <Text style={[
+                  styles.cloudDbStatusBadgeText,
+                  { color: cloudDbStatus?.isConnected ? '#065F46' : '#92400E' }
+                ]}>
+                  {cloudDbStatus?.isConnected ? 'CONNECTED & LIVE' : 'READY / LOCAL CACHE'}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.cloudDbUrlBanner}>
+              <Ionicons name="server-outline" size={16} color="#0369A1" />
+              <Text style={styles.cloudDbUrlBannerText} numberOfLines={1}>
+                {cloudDbStatus?.dbUrl || DEFAULT_FIREBASE_DB_URL}
+              </Text>
+              <TouchableOpacity
+                style={styles.cloudDbChangeBtn}
+                onPress={handleOpenFirebaseModal}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="create-outline" size={13} color="#0369A1" />
+                <Text style={styles.cloudDbChangeBtnText}>Change</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.vaultStatusGrid}>
+              <View style={styles.vaultStatusItem}>
+                <Text style={styles.vaultStatusLabel}>WEBSITE & APP SYNC</Text>
+                <Text style={styles.vaultStatusValHighlight}>
+                  {cloudDbStatus?.isConnected ? 'Active & Live' : 'Local Cache Active'}
+                </Text>
+              </View>
+
+              <View style={styles.vaultStatusItem}>
+                <Text style={styles.vaultStatusLabel}>LAST CLOUD FETCH</Text>
+                <Text style={styles.vaultStatusVal} numberOfLines={1}>
+                  {cloudDbStatus?.lastFetched ? new Date(cloudDbStatus.lastFetched).toLocaleTimeString() : 'Automatic on load'}
+                </Text>
+              </View>
+
+              <View style={styles.vaultStatusItem}>
+                <Text style={styles.vaultStatusLabel}>COLLECTIONS SYNCED</Text>
+                <Text style={styles.vaultStatusVal}>Funds, Members, Expenses & All</Text>
+              </View>
+
+              <View style={styles.vaultStatusItem}>
+                <Text style={styles.vaultStatusLabel}>DATABASE STATUS</Text>
+                <Text style={styles.vaultStatusVal}>
+                  {cloudDbStatus?.isSyncing ? 'Syncing...' : 'Real-Time Streaming'}
+                </Text>
+              </View>
+            </View>
+
+            {/* Cloud Action Buttons */}
+            <View style={styles.vaultActionsRow}>
+              <TouchableOpacity
+                style={styles.cloudDbPullBtn}
+                onPress={handlePullCloudData}
+                disabled={pullingCloud}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="cloud-download" size={16} color="#FFFFFF" />
+                <Text style={styles.cloudDbPullBtnText}>
+                  {pullingCloud ? 'Fetching Data...' : 'Fetch All from Database'}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.cloudDbPushBtn}
+                onPress={handlePushCloudData}
+                disabled={pushingCloud}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="cloud-upload" size={16} color="#0369A1" />
+                <Text style={styles.cloudDbPushBtnText}>
+                  {pushingCloud ? 'Saving...' : 'Save All to Database'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Configure Firebase Button */}
+            <TouchableOpacity
+              style={styles.cloudDbConfigBtn}
+              onPress={handleOpenFirebaseModal}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="settings-outline" size={15} color="#475569" />
+              <Text style={styles.cloudDbConfigBtnText}>
+                Configure / Paste Your Firebase Database URL
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Confidential Database & Hourly Backup Vault Card */}
         {(isSuperuser || isAdmin) && (
           <View style={styles.vaultCard}>
@@ -607,6 +805,130 @@ export default function ProfileScreen({ navigation }) {
                 </TouchableOpacity>
               ))}
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Firebase Database URL Configuration Modal */}
+      <Modal
+        visible={showFirebaseModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowFirebaseModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCardLarge}>
+            <View style={styles.modalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="server" size={22} color="#DC2626" />
+                <Text style={styles.modalTitle}>Firebase Cloud Database</Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowFirebaseModal(false)}>
+                <Ionicons name="close" size={22} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ maxHeight: 440 }} showsVerticalScrollIndicator={true}>
+              <Text style={styles.firebaseModalDesc}>
+                Enter your Firebase Realtime Database URL to store and sync funds, expenses, sponsors, members, messages, and polls live between the website and mobile app.
+              </Text>
+
+              <Text style={styles.fieldLabel}>Firebase Realtime Database URL</Text>
+              <View style={[styles.inputRow, styles.inputRowEditing, { marginBottom: 12 }]}>
+                <Ionicons name="link-outline" size={18} color="#DC2626" style={styles.fieldIcon} />
+                <TextInput
+                  style={styles.input}
+                  value={customFirebaseUrlInput}
+                  onChangeText={setCustomFirebaseUrlInput}
+                  placeholder="https://your-project-default-rtdb.firebaseio.com"
+                  placeholderTextColor="#94A3B8"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+              </View>
+
+              {/* Test probe result banner */}
+              {testDbResult && (
+                <View style={[
+                  styles.probeResultBox,
+                  { backgroundColor: testDbResult.success ? '#ECFDF5' : '#FEF2F2', borderColor: testDbResult.success ? '#A7F3D0' : '#FECACA' }
+                ]}>
+                  <Ionicons
+                    name={testDbResult.success ? 'checkmark-circle' : 'alert-circle'}
+                    size={18}
+                    color={testDbResult.success ? '#059669' : '#DC2626'}
+                  />
+                  <Text style={[
+                    styles.probeResultText,
+                    { color: testDbResult.success ? '#065F46' : '#991B1B' }
+                  ]}>
+                    {testDbResult.success
+                      ? 'Connection successful! Database is accessible.'
+                      : (testDbResult.error || 'Connection check failed.')}
+                  </Text>
+                </View>
+              )}
+
+              {/* Action Buttons inside modal */}
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 8, marginBottom: 16 }}>
+                <TouchableOpacity
+                  style={styles.testProbeBtn}
+                  onPress={handleTestDbProbe}
+                  disabled={testingDbConnection}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="pulse-outline" size={16} color="#0369A1" />
+                  <Text style={styles.testProbeBtnText}>
+                    {testingDbConnection ? 'Testing...' : 'Test Connection'}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={{ flex: 1 }}
+                  onPress={handleSaveFirebaseUrl}
+                  disabled={testingDbConnection}
+                  activeOpacity={0.85}
+                >
+                  <LinearGradient colors={['#DC2626', '#EA580C']} style={styles.saveDbBtn}>
+                    <Ionicons name="checkmark-circle" size={16} color="#FFFFFF" />
+                    <Text style={styles.saveDbBtnText}>Save & Connect</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+
+              {/* Accordion: Step-by-Step Setup Guide */}
+              <TouchableOpacity
+                style={styles.guideAccordionHeader}
+                onPress={() => setShowSetupGuide(!showSetupGuide)}
+                activeOpacity={0.8}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Ionicons name="help-circle-outline" size={18} color="#EA580C" />
+                  <Text style={styles.guideAccordionTitle}>How to get your free Firebase URL (2 mins)</Text>
+                </View>
+                <Ionicons name={showSetupGuide ? 'chevron-up' : 'chevron-down'} size={18} color="#EA580C" />
+              </TouchableOpacity>
+
+              {showSetupGuide && (
+                <View style={styles.guideContent}>
+                  {FIREBASE_SETUP_GUIDE.map((item) => (
+                    <View key={item.step} style={styles.guideStepRow}>
+                      <View style={styles.guideStepNum}>
+                        <Text style={styles.guideStepNumText}>{item.step}</Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.guideStepTitle}>{item.title}</Text>
+                        <Text style={styles.guideStepDesc}>{item.desc}</Text>
+                      </View>
+                    </View>
+                  ))}
+                  <View style={styles.guideRuleBox}>
+                    <Text style={styles.guideRuleTitle}>Firebase Realtime Database Rules:</Text>
+                    <Text style={styles.guideRuleCode}>{`{\n  "rules": {\n    ".read": true,\n    ".write": true\n  }\n}`}</Text>
+                  </View>
+                </View>
+              )}
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -1321,5 +1643,285 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '800',
     color: '#4338CA',
+  },
+  cloudDbCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 18,
+    marginBottom: 16,
+    borderWidth: 1.5,
+    borderColor: '#BAE6FD',
+    shadowColor: '#0284C7',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    elevation: 3,
+  },
+  cloudDbHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+    gap: 8,
+  },
+  cloudDbTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  cloudDbCardTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#0C4A6E',
+  },
+  cloudDbCardSub: {
+    fontSize: 11,
+    color: '#0284C7',
+    marginTop: 1,
+    fontWeight: '600',
+  },
+  cloudDbStatusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  cloudDbPulseDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
+  cloudDbStatusBadgeText: {
+    fontSize: 9.5,
+    fontWeight: '900',
+    letterSpacing: 0.4,
+  },
+  cloudDbUrlBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#F0F9FF',
+    borderWidth: 1,
+    borderColor: '#E0F2FE',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 14,
+  },
+  cloudDbUrlBannerText: {
+    flex: 1,
+    fontSize: 11.5,
+    fontWeight: '600',
+    color: '#0369A1',
+    fontFamily: Platform.OS === 'web' ? 'monospace' : undefined,
+  },
+  cloudDbChangeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#E0F2FE',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  cloudDbChangeBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#0369A1',
+  },
+  cloudDbPullBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#0284C7',
+    paddingVertical: 11,
+    borderRadius: 12,
+    shadowColor: '#0284C7',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  cloudDbPullBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  cloudDbPushBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#F0F9FF',
+    borderWidth: 1.5,
+    borderColor: '#BAE6FD',
+    paddingVertical: 11,
+    borderRadius: 12,
+  },
+  cloudDbPushBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#0369A1',
+  },
+  cloudDbConfigBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingVertical: 10,
+    borderRadius: 12,
+    marginTop: 8,
+  },
+  cloudDbConfigBtnText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#475569',
+  },
+  modalCardLarge: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 22,
+    width: '94%',
+    maxWidth: 540,
+    maxHeight: '90%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 24,
+    elevation: 10,
+  },
+  firebaseModalDesc: {
+    fontSize: 13,
+    color: '#475569',
+    lineHeight: 18,
+    marginBottom: 14,
+  },
+  probeResultBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    marginBottom: 10,
+  },
+  probeResultText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  testProbeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#F0F9FF',
+    borderWidth: 1.5,
+    borderColor: '#BAE6FD',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  testProbeBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0369A1',
+  },
+  saveDbBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  saveDbBtnText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  guideAccordionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFF7ED',
+    borderWidth: 1,
+    borderColor: '#FFEDD5',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    marginTop: 6,
+    marginBottom: 10,
+  },
+  guideAccordionTitle: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#C2410C',
+  },
+  guideContent: {
+    backgroundColor: '#FFFDF7',
+    borderWidth: 1,
+    borderColor: '#FED7AA',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 14,
+    gap: 10,
+  },
+  guideStepRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  guideStepNum: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#EA580C',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+  },
+  guideStepNumText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  guideStepTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  guideStepDesc: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 1,
+    lineHeight: 15,
+  },
+  guideRuleBox: {
+    backgroundColor: '#1E293B',
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 6,
+  },
+  guideRuleTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#94A3B8',
+    marginBottom: 4,
+  },
+  guideRuleCode: {
+    fontFamily: Platform.OS === 'web' ? 'monospace' : undefined,
+    fontSize: 11,
+    color: '#34D399',
+    lineHeight: 16,
   },
 });

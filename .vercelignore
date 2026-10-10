@@ -3,4 +3,8 @@ ios/
 .github/
 build-apk.bat
 build-apk-local.bat
+deploy-firebase.bat
+firebase.json
+.firebaserc
+database.rules.json
 eas.json

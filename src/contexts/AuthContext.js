@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ROLES, SUPERUSER, DEFAULT_ADMIN_CONTROLS } from '../utils/constants';
 import { getCookie, setCookie, deleteCookie, SESSION_COOKIE_KEY } from '../utils/cookieStorage';
 import { broadcastSync, subscribeToSync } from '../utils/cloudSync';
+import { fetchCollectionFromCloud, saveCollectionToCloud } from '../services/cloudDatabase';
 
 const AuthContext = createContext(null);
 
@@ -87,6 +88,40 @@ export function AuthProvider({ children }) {
         usersList = [DEFAULT_USERS[0], ...usersList];
       }
 
+      // Fetch latest users from cloud database so registered users exist on the website as well
+      try {
+        const cloudUsersRes = await fetchCollectionFromCloud('users');
+        if (cloudUsersRes.success && Array.isArray(cloudUsersRes.data) && cloudUsersRes.data.length > 0) {
+          const mergedMap = new Map();
+          // Add local users
+          usersList.forEach(u => { if (u && u.id) mergedMap.set(u.id, u); });
+          // Add/override cloud users
+          cloudUsersRes.data.forEach(u => { if (u && u.id) mergedMap.set(u.id, u); });
+
+          let mergedList = Array.from(mergedMap.values());
+          // Ensure Devansh is always preserved
+          const devIdx = mergedList.findIndex(u => u.username?.toLowerCase() === 'devansh' || u.role === ROLES.SUPERUSER);
+          if (devIdx >= 0) {
+            mergedList[devIdx] = {
+              ...mergedList[devIdx],
+              name: 'Devansh',
+              username: 'Devansh',
+              password: '112754',
+              role: ROLES.SUPERUSER,
+              verified: true,
+            };
+          } else {
+            mergedList = [DEFAULT_USERS[0], ...mergedList];
+          }
+          usersList = mergedList;
+        } else if (usersList && usersList.length > 0) {
+          // If cloud has no users, seed cloud with local users
+          saveCollectionToCloud('users', usersList).catch(() => {});
+        }
+      } catch (err) {
+        console.warn('Cloud users fetch note:', err);
+      }
+
       setUsers(usersList);
       await AsyncStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(usersList));
 
@@ -134,6 +169,7 @@ export function AuthProvider({ children }) {
     setUsers(updatedUsers);
     await AsyncStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(updatedUsers));
     broadcastSync(STORAGE_KEYS.USERS, updatedUsers);
+    saveCollectionToCloud('users', updatedUsers).catch(() => {});
   };
 
   const register = async ({ name, email, phone, password, displayName, loginAs = 'user' }) => {

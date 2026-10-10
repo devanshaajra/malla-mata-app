@@ -11,6 +11,15 @@ import {
   exportDatabaseToFile,
   importDatabaseFromFile,
 } from '../utils/backupDatabase';
+import {
+  fetchAllFromCloud,
+  saveCollectionToCloud,
+  saveFullSnapshotToCloud,
+  getActiveDatabaseUrl,
+  setActiveDatabaseUrl,
+  testDatabaseConnection,
+  subscribeToCloudDatabase,
+} from '../services/cloudDatabase';
 
 const DataContext = createContext(null);
 
@@ -29,6 +38,42 @@ const KEYS = {
   CARRY_FORWARD: '@mm_carry_forward_v3',
   POLLS: '@mm_polls_v3',
   ANNOUNCEMENTS: '@mm_announcements_v3',
+};
+
+// Map AsyncStorage storage keys to Firebase collection names
+const KEY_TO_CLOUD_MAP = {
+  [KEYS.FUNDS]: 'funds',
+  [KEYS.EXPENSES]: 'expenses',
+  [KEYS.SPONSORS]: 'sponsors',
+  [KEYS.MESSAGES]: 'messages',
+  [KEYS.MEMBERS]: 'members',
+  [KEYS.QR_CODES]: 'qrCodes',
+  [KEYS.THEMES]: 'themes',
+  [KEYS.ATTENDANCE]: 'attendance',
+  [KEYS.MEDIA]: 'media',
+  [KEYS.TASKS]: 'tasks',
+  [KEYS.BUDGET]: 'budget',
+  [KEYS.CARRY_FORWARD]: 'carryForward',
+  [KEYS.POLLS]: 'polls',
+  [KEYS.ANNOUNCEMENTS]: 'announcements',
+};
+
+// Map Firebase collection names back to AsyncStorage storage keys
+const CLOUD_TO_KEY_MAP = {
+  funds: KEYS.FUNDS,
+  expenses: KEYS.EXPENSES,
+  sponsors: KEYS.SPONSORS,
+  messages: KEYS.MESSAGES,
+  members: KEYS.MEMBERS,
+  qrCodes: KEYS.QR_CODES,
+  themes: KEYS.THEMES,
+  attendance: KEYS.ATTENDANCE,
+  media: KEYS.MEDIA,
+  tasks: KEYS.TASKS,
+  budget: KEYS.BUDGET,
+  carryForward: KEYS.CARRY_FORWARD,
+  polls: KEYS.POLLS,
+  announcements: KEYS.ANNOUNCEMENTS,
 };
 
 // ── Secure Data Encoding Layer ──
@@ -97,9 +142,45 @@ export function DataProvider({ children }) {
     lastSynced: new Date().toISOString(),
     isSyncing: false,
     platform: 'Android • iOS • Web',
+    cloudActive: false,
+  });
+
+  const [cloudDbStatus, setCloudDbStatus] = useState({
+    isConnected: false,
+    isSyncing: false,
+    lastFetched: null,
+    dbUrl: '',
+    error: null,
   });
 
   const [backupStatus, setBackupStatus] = useState(null);
+
+  // Helper to apply any collection map to component state
+  const applyDataToState = (map) => {
+    if (!map || typeof map !== 'object') return;
+    if (map[KEYS.FUNDS] !== undefined && map[KEYS.FUNDS] !== null) setFunds(map[KEYS.FUNDS]);
+    if (map[KEYS.EXPENSES] !== undefined && map[KEYS.EXPENSES] !== null) setExpenses(map[KEYS.EXPENSES]);
+    if (map[KEYS.SPONSORS] !== undefined && map[KEYS.SPONSORS] !== null) setSponsors(map[KEYS.SPONSORS]);
+    if (map[KEYS.MEMBERS] !== undefined && map[KEYS.MEMBERS] !== null) setMembers(map[KEYS.MEMBERS]);
+    if (map[KEYS.QR_CODES] !== undefined && map[KEYS.QR_CODES] !== null) setQrCodes(map[KEYS.QR_CODES]);
+    if (map[KEYS.THEMES] !== undefined && map[KEYS.THEMES] !== null) setThemes(map[KEYS.THEMES]);
+    if (map[KEYS.ATTENDANCE] !== undefined && map[KEYS.ATTENDANCE] !== null) setAttendance(map[KEYS.ATTENDANCE]);
+    if (map[KEYS.MEDIA] !== undefined && map[KEYS.MEDIA] !== null) setMedia(map[KEYS.MEDIA]);
+    if (map[KEYS.TASKS] !== undefined && map[KEYS.TASKS] !== null) setTasks(map[KEYS.TASKS]);
+    if (map[KEYS.POLLS] !== undefined && map[KEYS.POLLS] !== null) setPolls(map[KEYS.POLLS]);
+    if (map[KEYS.ANNOUNCEMENTS] !== undefined && map[KEYS.ANNOUNCEMENTS] !== null) setAnnouncements(map[KEYS.ANNOUNCEMENTS]);
+    if (map[KEYS.CARRY_FORWARD] !== undefined && map[KEYS.CARRY_FORWARD] !== null) setCarryForwardBalance(map[KEYS.CARRY_FORWARD]);
+
+    if (map[KEYS.MESSAGES] !== undefined && map[KEYS.MESSAGES] !== null) {
+      const rawMessages = map[KEYS.MESSAGES] || EMPTY_MESSAGES;
+      const now = Date.now();
+      const MAX_RETENTION_MS = 21 * 24 * 60 * 60 * 1000;
+      const DISPLAY_RETENTION_MS = 15 * 24 * 60 * 60 * 1000;
+      const nonExpired = rawMessages.filter(m => (now - new Date(m.timestamp).getTime()) <= MAX_RETENTION_MS);
+      const activeMsgs = nonExpired.filter(m => (now - new Date(m.timestamp).getTime()) <= DISPLAY_RETENTION_MS);
+      setMessages(activeMsgs);
+    }
+  };
 
   useEffect(() => {
     loadAll();
@@ -117,26 +198,39 @@ export function DataProvider({ children }) {
       } catch (e) {}
     }
 
-    // 2. Real-Time Cloud Sync across Android APK, iOS and Web Custom Domain
+    // 2. Real-Time Cloud Sync across Android APK, iOS and Web Custom Domain via push notifications
     const unsubscribeCloud = subscribeToSync(async (incomingKey, incomingData) => {
-      if (!incomingKey || incomingData === undefined) return;
+      if (!incomingKey) return;
       try {
-        await AsyncStorage.setItem(incomingKey, encodeSecure(incomingData));
-        if (incomingKey === KEYS.MEMBERS) {
-          await AsyncStorage.setItem('@malla_mata_members', encodeSecure(incomingData));
-        }
+        if (incomingData !== undefined) {
+          await AsyncStorage.setItem(incomingKey, encodeSecure(incomingData));
+          if (incomingKey === KEYS.MEMBERS) {
+            await AsyncStorage.setItem('@malla_mata_members', encodeSecure(incomingData));
+          }
 
-        if (incomingKey === KEYS.FUNDS) setFunds(incomingData);
-        else if (incomingKey === KEYS.EXPENSES) setExpenses(incomingData);
-        else if (incomingKey === KEYS.SPONSORS) setSponsors(incomingData);
-        else if (incomingKey === KEYS.MEMBERS) setMembers(incomingData);
-        else if (incomingKey === KEYS.THEMES) setThemes(incomingData);
-        else if (incomingKey === KEYS.ATTENDANCE) setAttendance(incomingData);
-        else if (incomingKey === KEYS.MEDIA) setMedia(incomingData);
-        else if (incomingKey === KEYS.TASKS) setTasks(incomingData);
-        else if (incomingKey === KEYS.POLLS) setPolls(incomingData);
-        else if (incomingKey === KEYS.ANNOUNCEMENTS) setAnnouncements(incomingData);
-        else if (incomingKey === KEYS.CARRY_FORWARD) setCarryForwardBalance(incomingData);
+          if (incomingKey === KEYS.FUNDS) setFunds(incomingData);
+          else if (incomingKey === KEYS.EXPENSES) setExpenses(incomingData);
+          else if (incomingKey === KEYS.SPONSORS) setSponsors(incomingData);
+          else if (incomingKey === KEYS.MEMBERS) setMembers(incomingData);
+          else if (incomingKey === KEYS.THEMES) setThemes(incomingData);
+          else if (incomingKey === KEYS.ATTENDANCE) setAttendance(incomingData);
+          else if (incomingKey === KEYS.MEDIA) setMedia(incomingData);
+          else if (incomingKey === KEYS.TASKS) setTasks(incomingData);
+          else if (incomingKey === KEYS.POLLS) setPolls(incomingData);
+          else if (incomingKey === KEYS.ANNOUNCEMENTS) setAnnouncements(incomingData);
+          else if (incomingKey === KEYS.CARRY_FORWARD) setCarryForwardBalance(incomingData);
+        } else {
+          // Re-fetch key from cloud database
+          const cloudField = KEY_TO_CLOUD_MAP[incomingKey];
+          if (cloudField) {
+            fetchCollectionFromCloud(cloudField).then(res => {
+              if (res.success && res.data !== null && res.data !== undefined) {
+                applyDataToState({ [incomingKey]: res.data });
+                AsyncStorage.setItem(incomingKey, encodeSecure(res.data)).catch(() => {});
+              }
+            });
+          }
+        }
 
         setSyncStatus(prev => ({
           ...prev,
@@ -148,20 +242,44 @@ export function DataProvider({ children }) {
       }
     });
 
-    // 3. Hourly Database Backup Synchronization System & Integrity Protection
+    // 3. Real-Time SSE Stream directly from Firebase Realtime Database
+    const unsubscribeFirebase = subscribeToCloudDatabase(async (path, data) => {
+      if (!data) return;
+      try {
+        if (path === '/' || path === '' || !path) {
+          // Full database update from Firebase
+          const mapped = {};
+          Object.entries(CLOUD_TO_KEY_MAP).forEach(([cloudField, storageKey]) => {
+            if (data[cloudField] !== undefined && data[cloudField] !== null) {
+              mapped[storageKey] = data[cloudField];
+            }
+          });
+          if (Object.keys(mapped).length > 0) {
+            applyDataToState(mapped);
+          }
+        } else {
+          // Single collection update (e.g. '/expenses')
+          const cleanPath = path.replace(/^\//, '');
+          const storageKey = CLOUD_TO_KEY_MAP[cleanPath];
+          if (storageKey) {
+            applyDataToState({ [storageKey]: data });
+            AsyncStorage.setItem(storageKey, encodeSecure(data)).catch(() => {});
+          }
+        }
+        setCloudDbStatus(prev => ({
+          ...prev,
+          isConnected: true,
+          lastFetched: new Date().toISOString(),
+        }));
+      } catch (e) {}
+    });
+
+    // 4. Hourly Database Backup Synchronization System & Integrity Protection
     let backupTimer = null;
     let handleFocusOrVisibility = null;
 
     const initBackupSystem = async () => {
       try {
-        // One-time automatic purge migration for confidential database mode
-        const CONFIDENTIAL_DB_INITIALIZED_KEY = '@mm_confidential_db_initialized_v4';
-        const wasInitialized = await AsyncStorage.getItem(CONFIDENTIAL_DB_INITIALIZED_KEY);
-        if (!wasInitialized) {
-          await purgeAllDatabaseData();
-          await AsyncStorage.setItem(CONFIDENTIAL_DB_INITIALIZED_KEY, 'true');
-        }
-
         await cleanseFakeEntriesFromDatabase();
 
         const status = await getBackupSyncStatus();
@@ -209,6 +327,7 @@ export function DataProvider({ children }) {
     return () => {
       if (bc) { try { bc.close(); } catch (e) {} }
       if (unsubscribeCloud) unsubscribeCloud();
+      if (unsubscribeFirebase) unsubscribeFirebase();
       if (backupTimer) clearInterval(backupTimer);
       if (typeof window !== 'undefined' && handleFocusOrVisibility) {
         window.removeEventListener('focus', handleFocusOrVisibility);
@@ -221,51 +340,24 @@ export function DataProvider({ children }) {
 
   const loadAll = async () => {
     try {
-      // 1. One-time clean confidential database migration: ensure all old demo/sample data is purged
-      const CONFIDENTIAL_CLEAN_KEY = '@mm_confidential_db_clean_v7';
-      const isClean = await AsyncStorage.getItem(CONFIDENTIAL_CLEAN_KEY);
-      if (!isClean) {
-        await purgeAllDatabaseData();
-        await AsyncStorage.setItem(CONFIDENTIAL_CLEAN_KEY, 'true');
-      }
-
+      // 1. Instant local read: Load all data from local AsyncStorage first for immediate UI display
       const keys = Object.values(KEYS);
       const results = await AsyncStorage.multiGet(keys);
-      const map = {};
+      const localMap = {};
       results.forEach(([k, v]) => {
         try {
-          map[k] = v ? decodeSecure(v) : null;
+          localMap[k] = v ? decodeSecure(v) : null;
         } catch (err) {
           console.warn(`Safe recovery: error parsing ${k}`, err);
-          map[k] = null;
+          localMap[k] = null;
         }
       });
 
-      // Chat retention: auto delete older than 21 days
-      const rawMessages = map[KEYS.MESSAGES] || EMPTY_MESSAGES;
-      const now = Date.now();
-      const MAX_RETENTION_MS = 21 * 24 * 60 * 60 * 1000;
-      const DISPLAY_RETENTION_MS = 15 * 24 * 60 * 60 * 1000;
+      applyDataToState(localMap);
+      setLoaded(true);
 
-      const nonExpired = rawMessages.filter(m => (now - new Date(m.timestamp).getTime()) <= MAX_RETENTION_MS);
-      if (nonExpired.length !== rawMessages.length) {
-        await persist(KEYS.MESSAGES, nonExpired);
-      }
-      const activeMsgs = nonExpired.filter(m => (now - new Date(m.timestamp).getTime()) <= DISPLAY_RETENTION_MS);
-
-      setFunds(map[KEYS.FUNDS] || EMPTY_FUNDS);
-      setExpenses(map[KEYS.EXPENSES] || EMPTY_EXPENSES);
-      setSponsors(map[KEYS.SPONSORS] || EMPTY_SPONSORS);
-      setMessages(activeMsgs);
-      setMembers(map[KEYS.MEMBERS] || EMPTY_MEMBERS);
-      setQrCodes(map[KEYS.QR_CODES] || []);
-      setThemes(map[KEYS.THEMES] || EMPTY_THEMES);
-      setAttendance(map[KEYS.ATTENDANCE] || {});
-      setMedia(map[KEYS.MEDIA] || EMPTY_MEDIA);
-      setTasks(map[KEYS.TASKS] || EMPTY_TASKS);
-      setPolls(map[KEYS.POLLS] || EMPTY_POLLS);
-      setAnnouncements(map[KEYS.ANNOUNCEMENTS] || EMPTY_ANNOUNCEMENTS);
-      setCarryForwardBalance(map[KEYS.CARRY_FORWARD] || '0');
+      // 2. Cloud Database Fetch: Automatically fetch all saved data from Firebase Cloud Database
+      await pullAllFromCloud(localMap);
     } catch (e) {
       console.error('Data load error:', e);
     } finally {
@@ -276,11 +368,31 @@ export function DataProvider({ children }) {
   let autoBackupDebounce = null;
   const persist = async (key, data) => {
     try {
+      // 1. Persist to local storage
       await AsyncStorage.setItem(key, encodeSecure(data));
       if (key === KEYS.MEMBERS) {
         await AsyncStorage.setItem('@malla_mata_members', encodeSecure(data));
       }
       setSyncStatus(prev => ({ ...prev, lastSynced: new Date().toISOString(), cloudActive: true }));
+
+      // 2. Persist directly to Firebase Realtime Database
+      const cloudField = KEY_TO_CLOUD_MAP[key];
+      if (cloudField) {
+        saveCollectionToCloud(cloudField, data).then(res => {
+          if (res?.success) {
+            setCloudDbStatus(prev => ({
+              ...prev,
+              isConnected: true,
+              lastFetched: new Date().toISOString(),
+              error: null,
+            }));
+          }
+        }).catch(err => {
+          console.warn('Cloud save warning:', err);
+        });
+      }
+
+      // 3. Multi-Tab Broadcast for Web
       if (typeof window !== 'undefined' && window.BroadcastChannel) {
         try {
           const bc = new BroadcastChannel('malla_mata_cross_platform_sync');
@@ -288,10 +400,11 @@ export function DataProvider({ children }) {
           bc.close();
         } catch (e) {}
       }
-      // Broadcast to cloud channel so Android APK, iOS and Web sync instantly
+
+      // 4. Broadcast instant synchronization ping to Android APK, iOS and Web
       broadcastSync(key, data);
 
-      // Auto-save incremental sync to backup database
+      // 5. Auto-save incremental sync to backup database
       if (autoBackupDebounce) clearTimeout(autoBackupDebounce);
       autoBackupDebounce = setTimeout(async () => {
         try {
@@ -1064,6 +1177,175 @@ export function DataProvider({ children }) {
     return res;
   };
 
+  // ── Cloud Database Direct Sync Operations ──
+  const pullAllFromCloud = async (currentLocalMap = null) => {
+    try {
+      setCloudDbStatus(prev => ({ ...prev, isSyncing: true }));
+      const activeUrl = await getActiveDatabaseUrl();
+      const result = await fetchAllFromCloud();
+
+      if (result.success && result.data && typeof result.data === 'object') {
+        const cloudData = result.data;
+        const mapped = {};
+        let count = 0;
+
+        Object.entries(CLOUD_TO_KEY_MAP).forEach(([cloudField, storageKey]) => {
+          if (cloudData[cloudField] !== undefined && cloudData[cloudField] !== null) {
+            mapped[storageKey] = cloudData[cloudField];
+            count++;
+          }
+        });
+
+        if (count > 0) {
+          applyDataToState(mapped);
+
+          // Update local AsyncStorage cache
+          for (const [sKey, val] of Object.entries(mapped)) {
+            try {
+              await AsyncStorage.setItem(sKey, encodeSecure(val));
+              if (sKey === KEYS.MEMBERS) {
+                await AsyncStorage.setItem('@malla_mata_members', encodeSecure(val));
+              }
+            } catch (e) {}
+          }
+
+          setCloudDbStatus({
+            isConnected: true,
+            isSyncing: false,
+            lastFetched: new Date().toISOString(),
+            dbUrl: result.url || activeUrl,
+            error: null,
+          });
+          setSyncStatus(prev => ({
+            ...prev,
+            lastSynced: new Date().toISOString(),
+            cloudActive: true,
+          }));
+
+          return { success: true, count, message: `Fetched ${count} collections from Cloud Database` };
+        } else {
+          // Cloud database returned empty/null data
+          // Check if local storage has data to auto-seed to cloud
+          const localCheck = currentLocalMap || {};
+          const hasLocalData =
+            (localCheck[KEYS.EXPENSES] && localCheck[KEYS.EXPENSES].length > 0) ||
+            (localCheck[KEYS.MEMBERS] && localCheck[KEYS.MEMBERS].length > 0) ||
+            (localCheck[KEYS.FUNDS] && Object.keys(localCheck[KEYS.FUNDS]).length > 0) ||
+            (expenses && expenses.length > 0) ||
+            (members && members.length > 0) ||
+            (funds && Object.keys(funds).length > 0);
+
+          if (hasLocalData) {
+            await pushAllToCloud();
+          }
+
+          setCloudDbStatus({
+            isConnected: true,
+            isSyncing: false,
+            lastFetched: new Date().toISOString(),
+            dbUrl: result.url || activeUrl,
+            error: null,
+          });
+          return { success: true, count: 0, message: 'Connected to Cloud Database' };
+        }
+      } else {
+        const errorMsg = result.error || 'Cloud database did not respond';
+        setCloudDbStatus(prev => ({
+          ...prev,
+          isConnected: false,
+          isSyncing: false,
+          error: errorMsg,
+          dbUrl: activeUrl,
+        }));
+        return { success: false, error: errorMsg };
+      }
+    } catch (err) {
+      setCloudDbStatus(prev => ({
+        ...prev,
+        isConnected: false,
+        isSyncing: false,
+        error: err.message,
+      }));
+      return { success: false, error: err.message };
+    }
+  };
+
+  const pushAllToCloud = async () => {
+    try {
+      setCloudDbStatus(prev => ({ ...prev, isSyncing: true }));
+      const activeUrl = await getActiveDatabaseUrl();
+
+      const snapshot = {
+        funds,
+        expenses,
+        sponsors,
+        messages,
+        members,
+        qrCodes,
+        themes,
+        attendance,
+        media,
+        tasks,
+        polls,
+        announcements,
+        carryForward: carryForwardBalance,
+        lastUpdated: new Date().toISOString(),
+      };
+
+      const res = await saveFullSnapshotToCloud(snapshot);
+      if (res?.success) {
+        setCloudDbStatus({
+          isConnected: true,
+          isSyncing: false,
+          lastFetched: new Date().toISOString(),
+          dbUrl: activeUrl,
+          error: null,
+        });
+        setSyncStatus(prev => ({
+          ...prev,
+          lastSynced: new Date().toISOString(),
+          cloudActive: true,
+        }));
+        return { success: true, message: 'All local data pushed and saved to Cloud Database successfully' };
+      } else {
+        setCloudDbStatus(prev => ({
+          ...prev,
+          isConnected: false,
+          isSyncing: false,
+          error: res?.error || 'Failed to push to Cloud Database',
+        }));
+        return { success: false, error: res?.error || 'Failed to push to Cloud Database' };
+      }
+    } catch (err) {
+      setCloudDbStatus(prev => ({
+        ...prev,
+        isConnected: false,
+        isSyncing: false,
+        error: err.message,
+      }));
+      return { success: false, error: err.message };
+    }
+  };
+
+  const updateFirebaseUrl = async (newUrl) => {
+    const res = await setActiveDatabaseUrl(newUrl);
+    if (res.success) {
+      const probe = await testDatabaseConnection(res.url);
+      setCloudDbStatus({
+        isConnected: probe.success,
+        isSyncing: false,
+        lastFetched: probe.success ? new Date().toISOString() : null,
+        dbUrl: res.url,
+        error: probe.success ? null : probe.error,
+      });
+      if (probe.success) {
+        await pullAllFromCloud();
+      }
+      return { success: true, probe };
+    }
+    return res;
+  };
+
   const value = {
     loaded,
     funds, saveFund, resetFund, getFund,
@@ -1083,6 +1365,7 @@ export function DataProvider({ children }) {
     syncStatus, triggerSync,
     backupStatus, triggerBackup, triggerRestore, triggerCleanse, triggerPurgeDatabase,
     triggerExportBackup, triggerImportBackup,
+    cloudDbStatus, pullAllFromCloud, pushAllToCloud, updateFirebaseUrl, testDatabaseConnection,
     totalFundsCollected,
     totalSponsorFunds,
     totalExpenses,
